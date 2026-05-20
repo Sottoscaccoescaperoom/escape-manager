@@ -34,30 +34,25 @@ spl_autoload_register(
 			return;
 		}
 
-		$relative = substr( $class, strlen( 'EscapeManager\\' ) );
-		$parts    = explode( '\\', $relative );
+		$relative   = substr( $class, strlen( 'EscapeManager\\' ) );
+		$parts      = explode( '\\', $relative );
 		$class_part = array_pop( $parts );
 
-		$directory_map = array(
-			''        => 'includes',
-			'Admin'   => 'admin',
-			'Public_' => 'public',
+		$top_map = array(
+			'Admin'        => 'admin',
+			'Public_App'   => 'public',
 		);
 
-		$subpath = '';
+		$subpath = 'includes';
 		if ( ! empty( $parts ) ) {
 			$top = $parts[0];
-			if ( isset( $directory_map[ $top ] ) ) {
-				$subpath = $directory_map[ $top ];
+			if ( isset( $top_map[ $top ] ) ) {
+				$subpath = $top_map[ $top ];
 				array_shift( $parts );
-				if ( ! empty( $parts ) ) {
-					$subpath .= '/' . strtolower( implode( '/', $parts ) );
-				}
-			} else {
-				$subpath = 'includes/' . strtolower( implode( '/', $parts ) );
 			}
-		} else {
-			$subpath = 'includes';
+			if ( ! empty( $parts ) ) {
+				$subpath .= '/' . strtolower( implode( '/', $parts ) );
+			}
 		}
 
 		$filename = 'class-' . strtolower( str_replace( '_', '-', $class_part ) ) . '.php';
@@ -68,6 +63,9 @@ spl_autoload_register(
 		}
 	}
 );
+
+// Carica helper functions globali (non sono classi)
+require_once EM_PLUGIN_DIR . 'includes/helpers/functions.php';
 
 register_activation_hook( __FILE__, array( 'EscapeManager\\Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'EscapeManager\\Deactivator', 'deactivate' ) );

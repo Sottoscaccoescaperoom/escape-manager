@@ -1,0 +1,212 @@
+/* Escape Manager — Booking pubblico — stili base */
+
+.em-booking-app {
+	max-width: 920px;
+	margin: 0 auto;
+	padding: 1.5rem;
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	color: #1a1a1a;
+}
+
+.em-booking-app h2 { font-size: 1.5rem; margin: 0 0 1rem; }
+.em-booking-app h3 { font-size: 1.15rem; margin: 1.25rem 0 0.75rem; }
+.em-booking-app p { margin: 0.5rem 0; }
+
+/* Stepper */
+.em-stepper {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: space-between;
+	margin-bottom: 1.5rem;
+	flex-wrap: wrap;
+}
+.em-step {
+	display: flex; align-items: center; gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: 999px;
+	background: #f1f5f9;
+	color: #64748b;
+	font-size: 0.85rem;
+	flex: 1 1 auto;
+	justify-content: center;
+	min-width: 0;
+}
+.em-step.is-active { background: #2563eb; color: white; }
+.em-step.is-done { background: #10b981; color: white; }
+.em-step-num {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 1.5rem; height: 1.5rem; border-radius: 50%;
+	background: rgba(255,255,255,0.25); font-weight: 600;
+}
+.em-step.is-active .em-step-num, .em-step.is-done .em-step-num { background: rgba(255,255,255,0.4); }
+
+/* Countdown */
+.em-countdown {
+	background: #fffbeb;
+	border: 1px solid #fcd34d;
+	color: #92400e;
+	padding: 0.5rem 1rem;
+	border-radius: 8px;
+	font-weight: 600;
+	margin-bottom: 1rem;
+	text-align: center;
+}
+
+/* Date picker */
+.em-date-picker label { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.em-date-picker select { padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; }
+
+/* Room cards */
+.em-room-card {
+	display: flex; gap: 1rem;
+	padding: 1rem;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	margin-bottom: 1rem;
+	background: white;
+}
+.em-room-card img {
+	width: 160px; height: 120px; object-fit: cover; border-radius: 8px;
+}
+.em-room-info { flex: 1; }
+.em-room-meta { color: #64748b; font-size: 0.9rem; }
+
+/* Slots */
+.em-slots {
+	display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;
+}
+.em-slot {
+	padding: 0.5rem 0.9rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 6px;
+	background: white;
+	font-size: 0.95rem;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+.em-slot:hover:not(:disabled) { background: #f1f5f9; border-color: #2563eb; }
+.em-slot:disabled { cursor: not-allowed; opacity: 0.5; }
+.em-slot-available { color: #1d4ed8; border-color: #93c5fd; }
+.em-slot-locked { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.em-slot-booked { background: #e2e8f0; border-color: #94a3b8; text-decoration: line-through; }
+.em-slot-blocked { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.em-slot-empty { color: #94a3b8; font-style: italic; }
+
+/* Legend */
+.em-legend {
+	display: flex; gap: 1rem; flex-wrap: wrap;
+	margin-top: 1rem; font-size: 0.85rem; color: #64748b;
+}
+.em-legend-item { display: flex; align-items: center; gap: 0.4rem; }
+.em-dot {
+	display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 50%;
+}
+.em-dot-available { background: #2563eb; }
+.em-dot-locked { background: #fcd34d; }
+.em-dot-booked { background: #94a3b8; }
+
+/* Forms */
+.em-form-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 1rem;
+}
+.em-form-grid label, .em-textarea-label {
+	display: flex; flex-direction: column; gap: 0.4rem;
+	font-size: 0.9rem; color: #374151;
+}
+.em-form-grid input, .em-textarea-label textarea {
+	padding: 0.6rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 6px;
+	font-size: 1rem;
+}
+.em-form-grid input:focus, .em-textarea-label textarea:focus {
+	outline: 2px solid #2563eb; border-color: #2563eb;
+}
+.em-err { color: #dc2626; font-size: 0.85rem; }
+
+/* Counter */
+.em-num-input { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; }
+.em-counter { display: flex; align-items: center; gap: 0.75rem; }
+.em-counter button {
+	width: 2rem; height: 2rem; border-radius: 50%;
+	border: 1px solid #cbd5e1; background: white;
+	font-size: 1.2rem; cursor: pointer;
+}
+.em-counter button:hover { background: #f1f5f9; }
+
+/* Summary */
+.em-summary {
+	background: #f8fafc;
+	padding: 1rem;
+	border-radius: 8px;
+	margin-bottom: 1rem;
+}
+.em-summary > div { padding: 0.25rem 0; }
+
+/* Payment */
+.em-payment-option {
+	display: block;
+	padding: 0.75rem 1rem;
+	border: 1px solid #cbd5e1;
+	border-radius: 8px;
+	cursor: pointer;
+	margin-bottom: 0.5rem;
+}
+.em-payment-option.is-active { background: #eff6ff; border-color: #2563eb; }
+
+.em-terms {
+	display: flex; gap: 0.5rem; align-items: flex-start;
+	margin: 1rem 0; font-size: 0.9rem;
+}
+
+/* Buttons */
+.em-actions {
+	display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem;
+}
+.em-btn {
+	padding: 0.7rem 1.5rem;
+	border: 0; border-radius: 8px;
+	font-size: 1rem; font-weight: 600;
+	cursor: pointer; transition: all 0.15s;
+}
+.em-btn-primary { background: #2563eb; color: white; }
+.em-btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+.em-btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+.em-btn-secondary { background: #e2e8f0; color: #1e293b; }
+.em-btn-secondary:hover:not(:disabled) { background: #cbd5e1; }
+
+/* Misc */
+.em-loading { color: #64748b; font-style: italic; }
+.em-error { background: #fee2e2; color: #991b1b; padding: 0.75rem; border-radius: 6px; }
+.em-empty { background: #f1f5f9; color: #64748b; padding: 1rem; border-radius: 6px; text-align: center; }
+
+/* Step 5 success */
+.em-step5 { text-align: center; padding: 2rem 1rem; }
+.em-success-badge {
+	width: 4rem; height: 4rem;
+	background: #10b981; color: white;
+	border-radius: 50%;
+	display: inline-flex; align-items: center; justify-content: center;
+	font-size: 2rem; margin-bottom: 1rem;
+}
+
+/* Modal */
+.em-modal-backdrop {
+	position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+	display: flex; align-items: center; justify-content: center;
+	z-index: 9999;
+}
+.em-modal {
+	background: white; padding: 2rem;
+	border-radius: 12px; max-width: 400px;
+	text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+	.em-room-card { flex-direction: column; }
+	.em-room-card img { width: 100%; height: 180px; }
+	.em-stepper .em-step-label { display: none; }
+}

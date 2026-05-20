@@ -1,107 +1,156 @@
-# Installazione e verifica Sprint 1
+# Installazione e setup
 
 ## Prerequisiti
 
-- WordPress 6.0+ in ambiente locale (Local by Flywheel, Laragon, XAMPP, Docker)
+- WordPress 6.0+ in ambiente locale ([Local by Flywheel](https://localwp.com/) consigliato, oppure Laragon, XAMPP, Docker)
 - PHP 8.1+
 - MySQL 5.7+ o MariaDB 10.3+
+- Internet attivo al primo caricamento (gli script React/htm sono caricati via ESM CDN; cache browser dopo)
 
 ## Installazione
 
-### Opzione A — Sviluppo diretto in WordPress locale (consigliato)
+### Opzione A — Sviluppo via symlink (consigliato)
 
-1. Trova la cartella `wp-content/plugins/` della tua installazione WP locale.
-2. Crea un symlink:
-   ```powershell
-   New-Item -ItemType SymbolicLink `
-     -Path "C:\percorso\wordpress\wp-content\plugins\escape-manager" `
-     -Target "c:\Users\lucad\Nuovo sistema gestione squadre\escape-manager"
-   ```
-   *(esegui PowerShell come amministratore)*
+PowerShell come **amministratore**:
+```powershell
+New-Item -ItemType SymbolicLink `
+  -Path "C:\percorso\al\sito\wp-content\plugins\escape-manager" `
+  -Target "c:\Users\lucad\Nuovo sistema gestione squadre\escape-manager"
+```
 
-### Opzione B — Copia manuale
+### Opzione B — Zip + upload
 
-1. Comprimi la cartella `escape-manager/` in `escape-manager.zip`.
-2. WordPress admin → Plugin → Aggiungi nuovo → Carica plugin → seleziona zip.
+```powershell
+Compress-Archive -Path "c:\Users\lucad\Nuovo sistema gestione squadre\escape-manager\*" -DestinationPath "$env:TEMP\escape-manager.zip"
+```
+Poi WordPress admin → Plugin → Aggiungi nuovo → Carica plugin.
 
 ## Attivazione
 
-1. WordPress admin → Plugin → trova "Escape Manager" → **Attiva**.
-2. Vai su menu laterale → **Escape Manager**.
+1. WordPress admin → Plugin → trova **Escape Manager** → Attiva.
+2. Menu laterale → **Escape Manager** → si apre il CRM.
 
-## Verifica Sprint 1
+Al primo avvio vengono create:
+- 21 tabelle DB con prefisso `wp_em_*`
+- 6 ruoli WP custom (`em_super_admin`, `em_admin`, `em_manager`, `em_game_master`, `em_staff`, `em_read_only`)
+- 19 capability `em_*` assegnate ai ruoli + all'admin WP nativo
+- Settings di default (lock TTL 10min, timezone Europe/Rome, currency EUR)
 
-### Check 1 — Tabelle create
-La pagina "Escape Manager → Dashboard" mostra:
+## Verifica installazione
+
+### Diagnostica
+WP admin → Escape Manager → **Diagnostica** — deve mostrare:
+- DB Schema: `2` (atteso `2`)
+- Ruoli em_roles: 6
+- Permessi em_permissions: 114
+- Utente admin: tutte le 19 capability `em_*` con ✅
+
+### CRM
+WP admin → Escape Manager → si apre l'app React. Se vedi solo schermata bianca:
+- Apri DevTools (F12) → Console: cerca errori (probabilmente CSP o ESM block).
+- Controlla che il tuo sito non blocchi `esm.sh` (in caso, vedi sezione "Hosting senza CDN" sotto).
+
+### REST API
+Da terminale:
+```powershell
+curl -X GET "http://il-tuo-sito.local/wp-json/escape-manager/v1/rooms" -H "Accept: application/json"
 ```
-Tabelle Escape Manager rilevate: 20 / 20
-```
-Se mancano tabelle, disattiva e riattiva il plugin.
+Deve rispondere `{"data": []}` (lista vuota all'inizio).
 
-### Check 2 — Ruoli WordPress creati
-WordPress admin → Utenti → Aggiungi nuovo → menu "Ruolo":
-Devono apparire:
-- EM Super Admin
-- EM Admin
-- EM Manager
-- EM Game Master
-- EM Staff
-- EM Read Only
+## Configurazione minima per partire
 
-### Check 3 — Diagnostica
-"Escape Manager → Diagnostica" mostra:
-- DB Schema: `1` (atteso `1`)
-- Ruoli em_roles: `6`
-- Permessi em_permissions: `114` (6 ruoli × 19 capability)
-- Per l'utente admin: tutte le 19 capability `em_*` con ✅
-
-### Check 4 — Ispezione DB diretta
-Apri TablePlus/phpMyAdmin sul DB WP locale e verifica esistano tutte e 20 le tabelle con prefisso `wp_em_` (o il prefisso configurato).
-
-## Risoluzione problemi
-
-### Errore "Cannot redeclare class"
-Probabilmente hai installato due copie del plugin. Disattiva e cancella la duplicata.
-
-### Tabelle non create
-- Verifica permessi MySQL dell'utente WP (deve avere CREATE).
-- Controlla `wp-config.php` → `define('WP_DEBUG', true)` per vedere errori dbDelta.
-- Attiva log: `define('WP_DEBUG_LOG', true)` → file `wp-content/debug.log`.
-
-### Pagina admin "Permessi insufficienti"
-Stai loggato con un utente che non ha capability `em_view_dashboard`. Usa admin WordPress nativo (ha tutto).
-
-## Disinstallazione
-
-Plugin → Disinstalla. Per **default i dati restano**. Per cancellare completamente:
-
-```php
-// Esegui prima della disinstallazione (es. plugin Code Snippets o wp-cli):
-update_option('em_purge_on_uninstall', true);
+### 1. Crea almeno una Location
+**Opzione 1 — CRM**: non c'è ancora un'UI nel CRM (MVP1) → usa REST direttamente:
+```powershell
+curl -X POST "http://il-tuo-sito.local/wp-json/escape-manager/v1/locations" `
+  -H "Content-Type: application/json" `
+  -H "X-WP-Nonce: <nonce>" `
+  -b "<cookie WP>" `
+  -d '{"name":"Sede Principale","city":"Milano","is_active":1}'
 ```
 
-Poi disinstalla normalmente: tabelle e ruoli verranno rimossi.
-
-## Prossimo sprint
-
-Quando Sprint 1 è verificato, lancia Sprint 2 con questo prompt:
-
+**Opzione 2 — phpMyAdmin / TablePlus** (più veloce per il primo seed):
+```sql
+INSERT INTO wp_em_locations (name, city, country, is_active, created_at, updated_at)
+VALUES ('Sede Principale', 'Milano', 'Italia', 1, NOW(), NOW());
 ```
-Apri escape-manager/PROGETTO.md sezione 6 (API REST).
-Inizia Sprint 2 — REST API minimale:
 
-1. includes/rest/class-rest-controller-base.php (auth helpers, permission callback,
-   validazione, formato risposta JSON)
-2. includes/repositories/ per locations, rooms, room_time_slots, temporary_locks
-3. includes/services/class-availability-service.php
-4. includes/services/class-lock-service.php con transazione FOR UPDATE
-5. includes/rest/class-rooms-controller.php (GET, POST, PUT, DELETE)
-6. includes/rest/class-locations-controller.php
-7. includes/rest/class-availability-controller.php (GET con date/room_id/location_id)
-8. includes/rest/class-locks-controller.php (POST, DELETE)
-9. includes/cron/class-lock-cleanup.php (wp_schedule_event ogni minuto)
+### 2. Crea le stanze
+CRM → menu **Stanze** → "+ Nuova stanza". Compila campi.
 
-Registra tutto su 'rest_api_init'. Usa namespace EM_REST_NAMESPACE.
+**Importante**: lo **slug della stanza DEVE corrispondere** allo slug della stessa stanza nel database Firestore di Sottoscacco (per il bridge). Vedi `PROGETTO.md` sezione "Allineamento slug stanze".
 
-Al termine fammi un riepilogo con curl di test per ogni endpoint.
+### 3. Configura orari delle stanze (time slots)
+Endpoint REST (per ora non c'è UI):
+```powershell
+$body = @{
+  slots = @(
+    @{ day_of_week = 0; start_time = "15:00:00"; end_time = "16:00:00" }
+    @{ day_of_week = 0; start_time = "17:00:00"; end_time = "18:00:00" }
+    @{ day_of_week = 6; start_time = "15:00:00"; end_time = "16:00:00" }
+  )
+} | ConvertTo-Json -Depth 3
+curl -X POST "http://localhost/wp-json/escape-manager/v1/rooms/1/time-slots" `
+  -H "Content-Type: application/json" -H "X-WP-Nonce: <nonce>" -b "<cookie>" -d $body
 ```
+- `day_of_week`: 0=domenica, 1=lunedì, …, 6=sabato
+- `start_time`: HH:MM:SS in **locale** (sarà convertito UTC quando si calcola disponibilità)
+
+### 4. Crea tariffe
+CRM → **Tariffe** → "+ Nuova tariffa". Esempio: 2-4 giocatori → prezzo fisso 60€.
+
+### 5. Inserisci shortcode nel sito
+In una pagina/articolo WordPress, aggiungi:
+```
+[escape_booking]
+```
+oppure con filtro location:
+```
+[escape_booking location_id="1"]
+```
+
+Apri la pagina nel browser: vedi il widget di prenotazione.
+
+### 6. Configura email
+CRM → **Impostazioni** → sezione "Email" → imposta nome e indirizzo mittente.
+
+### 7. Configura Bridge Sottoscacco
+CRM → **Bridge Sottoscacco** (voce di menu):
+- URL: `https://sottoscacco.app/api/webhooks/escape-navigator`
+- Secret: stesso valore di `ESCAPE_NAVIGATOR_WEBHOOK_SECRET` su Sottoscacco
+- Salva → clicca **Test connessione** → deve rispondere HTTP 2xx
+- **NON ATTIVARE** "Stato bridge" ancora! Vedi TEST_PLAN.md per il piano di test pre-switch.
+
+## Hosting senza accesso CDN (esm.sh bloccato)
+
+Se il tuo hosting blocca esm.sh, vedi `BUILD.md` per istruzioni su come pre-buildare i bundle React in locale con Vite e servirli dal plugin stesso. Per default usiamo CDN per ridurre la friction al primo run.
+
+## Troubleshooting
+
+### "Permessi insufficienti" su /me
+Stai loggato con un utente senza ruolo EM. Loggati come WP admin nativo (ha tutte le capability `em_*`).
+
+### Schermata bianca al CRM
+- DevTools (F12) → Console
+- Probabile causa: il browser blocca import ES modules da CDN. Soluzioni:
+  - Verifica connessione internet
+  - CSP del tema/plugin di sicurezza che blocca `esm.sh` → whitelisting
+
+### Tabelle mancanti
+- Diagnostica indica quali mancano → disattiva/riattiva plugin (ricarica `dbDelta`)
+- Verifica permessi utente MySQL: serve `CREATE TABLE`
+
+### Lock non scadono
+Cron WP non gira: hai bisogno di un visitatore (admin o pubblico) per triggerare `wp-cron.php`. Per produzione: disabilita WP-Cron via `define('DISABLE_WP_CRON', true);` in `wp-config.php` e setta un cron di sistema:
+```cron
+* * * * * curl -s https://il-tuo-sito.it/wp-cron.php >/dev/null 2>&1
+```
+
+### Webhook bridge sempre in "pending"
+- Verifica cron WP attivo
+- Forza dispatch manuale: Bridge Sottoscacco → "Esegui dispatch ora"
+- Controlla log "Ultimi 20 webhook" per `last_error`
+
+## Sviluppo dopo MVP 1
+
+Vedi `PROGETTO.md` sezioni 11 e Appendici C/D per MVP 2 (tariffe avanzate, employees, promocodes, export) e MVP 3 (Stripe, WhatsApp, statistiche).
