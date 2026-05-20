@@ -1,0 +1,38 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+debug.log
+
+# Node (per Vite future builds)
+node_modules/
+*.tsbuildinfo
+.npm/
+.eslintcache
+
+# Build output dei bundle React (committeremo i dist quando pronti)
+admin/crm-app/.vite/
+public/booking-app/.vite/
+
+# PHP
+vendor/
+composer.lock
+
+# Test
+.phpunit.result.cache
+coverage/
+
+# Local secrets (NON committare credenziali)
+*.local
+.env
+.env.*
+!.env.example
+
+# WordPress dev artifacts (se sviluppato in WP locale)
+wp-cli.local.yml
