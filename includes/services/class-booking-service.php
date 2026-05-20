@@ -7,6 +7,8 @@ use EscapeManager\Repositories\Customer_Repository;
 use EscapeManager\Repositories\Lock_Repository;
 use EscapeManager\Repositories\Room_Repository;
 use EscapeManager\Repositories\Location_Repository;
+use EscapeManager\Repositories\Promocode_Repository;
+use EscapeManager\Repositories\Voucher_Repository;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -73,8 +75,15 @@ final class Booking_Service {
 			), array( 'status' => 422 ) );
 		}
 
-		$customer_id  = $this->customers->find_or_create( $customer_data );
-		$total_amount = $this->pricing->calculate( (int) $room['id'], $total );
+		$customer_id = $this->customers->find_or_create( $customer_data );
+
+		$pricing = $this->pricing->calculate_with_discounts(
+			(int) $room['id'],
+			$total,
+			$payload['promocode'] ?? null,
+			$payload['voucher_code'] ?? null
+		);
+		$total_amount = $pricing['total_cents'];
 		$method       = (string) ( $payload['payment_method'] ?? 'on_site' );
 		$booking_status = $method === 'online'
 			? Booking::STATUS_AWAITING_PAYMENT
@@ -101,6 +110,14 @@ final class Booking_Service {
 
 		$this->locks->delete( (int) $lock['id'] );
 		$this->customers->increment_booking_count( $customer_id, (int) $room['id'] );
+
+		// Consume promocode/voucher se applicati
+		if ( ! empty( $pricing['promocode_id'] ) ) {
+			( new Promocode_Service() )->consume( $pricing['promocode_id'] );
+		}
+		if ( ! empty( $pricing['voucher_id'] ) ) {
+			( new Voucher_Service() )->redeem( $pricing['voucher_id'] );
+		}
 
 		$booking = $this->bookings->find( $booking_id );
 

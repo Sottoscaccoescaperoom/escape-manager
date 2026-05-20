@@ -105,6 +105,12 @@ final class Bookings_Controller extends Rest_Controller_Base {
 			'callback'            => array( $this, 'transition' ),
 			'permission_callback' => $this->require_capability( 'em_manage_bookings' ),
 		) );
+
+		register_rest_route( self::NAMESPACE, '/bookings/(?P<id>\d+)/move', array(
+			'methods'             => 'POST',
+			'callback'            => array( $this, 'move' ),
+			'permission_callback' => $this->require_capability( 'em_manage_bookings' ),
+		) );
 	}
 
 	public function create_public( \WP_REST_Request $req ): \WP_REST_Response {
@@ -248,6 +254,50 @@ final class Bookings_Controller extends Rest_Controller_Base {
 		if ( ! $note ) return em_json_error( 'VALIDATION', 'Nota vuota', 400 );
 		$res = $this->service->add_note( (int) $req['id'], $note );
 		return em_json_data( $res, 201 );
+	}
+
+	public function move( \WP_REST_Request $req ): \WP_REST_Response {
+		$id   = (int) $req['id'];
+		$body = $this->body( $req );
+		$existing = $this->bookings->find( $id );
+		if ( ! $existing ) return em_json_error( 'NOT_FOUND', 'Prenotazione non trovata', 404 );
+
+		$new_start_local = (string) ( $body['start_datetime'] ?? '' );
+		$new_room_id     = isset( $body['room_id'] ) ? (int) $body['room_id'] : (int) $existing['room_id'];
+		if ( ! $new_start_local ) {
+			return em_json_error( 'VALIDATION', 'start_datetime obbligatorio', 400 );
+		}
+
+		// Converti in UTC se viene con offset locale
+		try {
+			$dt = new \DateTimeImmutable( $new_start_local );
+			$dt = $dt->setTimezone( new \DateTimeZone( 'UTC' ) );
+			$new_start = $dt->format( 'Y-m-d H:i:s' );
+		} catch ( \Exception $e ) {
+			return em_json_error( 'VALIDATION', 'start_datetime non valido', 400 );
+		}
+
+		$room = $this->rooms->find( $new_room_id );
+		if ( ! $room ) return em_json_error( 'NOT_FOUND', 'Stanza non trovata', 404 );
+
+		$new_end_dt = ( new \DateTimeImmutable( $new_start, new \DateTimeZone( 'UTC' ) ) )
+			->modify( '+' . (int) $room['duration_minutes'] . ' minutes' );
+		$new_end = $new_end_dt->format( 'Y-m-d H:i:s' );
+
+		if ( $this->bookings->has_overlap( $new_room_id, $new_start, $new_end, $id ) ) {
+			return em_json_error( 'SLOT_UNAVAILABLE', 'Lo slot di destinazione è già occupato.', 409 );
+		}
+
+		$this->bookings->update( $id, array(
+			'room_id'        => $new_room_id,
+			'start_datetime' => $new_start,
+			'end_datetime'   => $new_end,
+		) );
+
+		$updated = $this->bookings->find( $id );
+		do_action( 'em_booking_updated', $updated, $existing );
+
+		return em_json_data( $this->present( $updated ) );
 	}
 
 	public function assign_staff( \WP_REST_Request $req ): \WP_REST_Response {

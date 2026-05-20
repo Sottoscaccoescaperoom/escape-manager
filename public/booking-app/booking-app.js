@@ -276,6 +276,42 @@ function Step3_Customer({ requiredFields, onNext, onBack }) {
 function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, submitting, error }) {
 	const [method, setMethod] = useState('on_site');
 	const [accepted, setAccepted] = useState(false);
+	const [promoInput, setPromoInput] = useState('');
+	const [promoApplied, setPromoApplied] = useState(null); // { code, discount_cents, type: 'promocode'|'voucher' }
+	const [promoError, setPromoError] = useState(null);
+	const [validating, setValidating] = useState(false);
+
+	// Stima totale lato client: useremo l'output server per la cifra esatta
+	const totalPlayers = participants.adults + participants.children;
+
+	const applyCode = async () => {
+		if (!promoInput) return;
+		setValidating(true); setPromoError(null);
+		try {
+			// Prima tenta promocode
+			try {
+				const r = await api('POST', '/promocodes/validate', { code: promoInput, amount_cents: 9999999 });
+				setPromoApplied({ code: r.data.code, discount_cents: r.data.discount_cents, type: 'promocode' });
+				return;
+			} catch {}
+			// Poi tenta voucher
+			const r2 = await api('POST', '/vouchers/validate', { code: promoInput, amount_cents: 9999999 });
+			setPromoApplied({ code: r2.data.code, discount_cents: r2.data.discount_cents, type: 'voucher' });
+		} catch (e) {
+			setPromoError(e.message || 'Codice non valido');
+			setPromoApplied(null);
+		} finally { setValidating(false); }
+	};
+
+	const removeCode = () => { setPromoApplied(null); setPromoInput(''); setPromoError(null); };
+
+	const onSubmit = () => {
+		const payload = { payment_method: method };
+		if (promoApplied) {
+			payload[promoApplied.type === 'voucher' ? 'voucher_code' : 'promocode'] = promoApplied.code;
+		}
+		onConfirm(payload);
+	};
 
 	return html`
 		<div class="em-step4">
@@ -290,6 +326,21 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 				${customer.email && html`<div><strong>Email:</strong> ${customer.email}</div>`}
 				${participants.customer_comment && html`<div><strong>Note:</strong> ${participants.customer_comment}</div>`}
 			</div>
+
+			<h3>Codice sconto / Voucher</h3>
+			${!promoApplied && html`
+				<div class="em-promo-row">
+					<input type="text" placeholder="Inserisci codice" value=${promoInput} onInput=${e => setPromoInput(e.target.value.toUpperCase())} />
+					<button class="em-btn em-btn-secondary" disabled=${!promoInput || validating} onClick=${applyCode}>${validating ? '…' : 'Applica'}</button>
+				</div>
+				${promoError && html`<p class="em-error" style="margin-top:0.5rem;">${promoError}</p>`}
+			`}
+			${promoApplied && html`
+				<div class="em-promo-applied">
+					✓ <strong>${promoApplied.code}</strong> applicato (sconto fino a ${formatMoney(promoApplied.discount_cents)})
+					<button class="em-link" onClick=${removeCode}>rimuovi</button>
+				</div>
+			`}
 
 			<h3>Metodo di pagamento</h3>
 			<div class="em-payment-methods">
@@ -308,7 +359,7 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 
 			<div class="em-actions">
 				<button class="em-btn em-btn-secondary" onClick=${onBack} disabled=${submitting}>Indietro</button>
-				<button class="em-btn em-btn-primary" disabled=${!accepted || submitting} onClick=${() => onConfirm({ payment_method: method })}>
+				<button class="em-btn em-btn-primary" disabled=${!accepted || submitting} onClick=${onSubmit}>
 					${submitting ? 'Invio in corso…' : 'Conferma prenotazione'}
 				</button>
 			</div>

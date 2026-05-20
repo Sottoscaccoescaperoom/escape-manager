@@ -161,6 +161,12 @@
 	margin: 1rem 0; font-size: 0.9rem;
 }
 
+/* Promocode / voucher */
+.em-promo-row { display: flex; gap: 0.5rem; }
+.em-promo-row input { flex: 1; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; text-transform: uppercase; }
+.em-promo-applied { background: #d1fae5; color: #065f46; padding: 0.75rem; border-radius: 6px; }
+.em-link { background: transparent; border: 0; color: #2563eb; cursor: pointer; text-decoration: underline; margin-left: 0.5rem; }
+
 /* Buttons */
 .em-actions {
 	display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem;

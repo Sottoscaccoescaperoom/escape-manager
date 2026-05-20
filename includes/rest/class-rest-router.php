@@ -24,6 +24,10 @@ final class Rest_Router {
 			new Settings_Controller(),
 			new Calendar_Controller(),
 			new Webhooks_Admin_Controller(),
+			new Promocodes_Controller(),
+			new Vouchers_Controller(),
+			new Statistics_Controller(),
+			new Export_Controller(),
 		);
 		foreach ( $controllers as $c ) {
 			$c->register_routes();
