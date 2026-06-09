@@ -122,7 +122,6 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 			${avail ? html`
 				<span class="emc-slot-time">${formatTime(slot.start)}</span>
 				${crossesDay ? html`<span class="emc-slot-date">${dayMonthShort(slotDate)}</span>` : ''}
-				${room.price_from_cents != null ? html`<span class="emc-slot-price">${formatPriceShort(room.price_from_cents)}</span>` : ''}
 			` : html`<span class="emc-slot-lock">🔒</span>`}
 		</button>`;
 }

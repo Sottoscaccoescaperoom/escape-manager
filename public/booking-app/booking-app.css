@@ -54,9 +54,9 @@
 	border: 0;
 	background: transparent;
 	color: var(--em-muted);
-	font-size: 1.05rem;
+	font-size: 0.95rem;
 	font-weight: 600;
-	padding: 0.65rem 1.4rem;
+	padding: 0.5rem 1.15rem;
 	border-radius: 9px;
 	cursor: pointer;
 	transition: background .15s, color .15s;
@@ -78,10 +78,10 @@
 	cursor: pointer;
 	color: var(--em-text);
 	font-weight: 600;
-	font-size: 1.05rem;
-	padding: 0.65rem 1rem;
+	font-size: 0.95rem;
+	padding: 0.5rem 0.9rem;
 }
-.emc-datepick .emc-caret { color: var(--em-muted); font-size: 0.8rem; }
+.emc-datepick .emc-caret { color: var(--em-muted); font-size: 0.75rem; }
 .emc-datepick input[type="date"] {
 	position: absolute;
 	inset: 0;
@@ -104,11 +104,11 @@
 }
 .emc-arrow {
 	flex: 0 0 auto;
-	width: 42px;
+	width: 36px;
 	border: 0;
 	background: transparent;
 	color: var(--em-muted);
-	font-size: 1.8rem;
+	font-size: 1.5rem;
 	line-height: 1;
 	cursor: pointer;
 	border-radius: 10px;
@@ -128,19 +128,19 @@
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 4px;
+	gap: 3px;
 	min-width: 0;
-	padding: 0.9rem 0.4rem;
+	padding: 0.6rem 0.4rem;
 	border: 0;
 	background: transparent;
 	color: var(--em-muted);
-	border-radius: 14px;
+	border-radius: 12px;
 	cursor: pointer;
 	transition: background .15s, color .15s;
 }
 .emc-day:hover { background: var(--em-chip); color: var(--em-text); }
-.emc-day .emc-day-wd { font-size: 0.88rem; text-transform: lowercase; }
-.emc-day .emc-day-dm { font-size: 1.1rem; font-weight: 700; color: var(--em-text); }
+.emc-day .emc-day-wd { font-size: 0.74rem; text-transform: lowercase; }
+.emc-day .emc-day-dm { font-size: 0.92rem; font-weight: 700; color: var(--em-text); }
 .emc-day.is-active {
 	background: var(--em-accent);
 	color: #fff;
@@ -157,55 +157,54 @@
 	margin-bottom: 0.85rem;
 }
 .emc-avatar {
-	width: 58px; height: 58px;
+	width: 48px; height: 48px;
 	border-radius: 50%;
 	overflow: hidden;
 	flex: 0 0 auto;
 	background: linear-gradient(135deg, #3a3a46, #23232b);
 	display: flex; align-items: center; justify-content: center;
-	color: #cfcfda; font-weight: 800; font-size: 1.4rem;
+	color: #cfcfda; font-weight: 800; font-size: 1.1rem;
 	border: 1px solid var(--em-border);
 }
 .emc-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.emc-room-name { font-size: 1.3rem; font-weight: 700; color: var(--em-text); }
-.emc-room-meta { font-size: 1rem; color: var(--em-muted); margin-top: 3px; }
+.emc-room-name { font-size: 1.05rem; font-weight: 700; color: var(--em-text); }
+.emc-room-meta { font-size: 0.85rem; color: var(--em-muted); margin-top: 2px; }
 .emc-room-meta .emc-dot { color: var(--em-faint); margin: 0 0.15rem; }
 
 .emc-slots {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.8rem;
+	gap: 0.6rem;
 }
-.emc-slot-empty { color: var(--em-faint); font-size: 1rem; }
+.emc-slot-empty { color: var(--em-faint); font-size: 0.9rem; }
 
 .emc-slot {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	min-width: 104px;
-	padding: 0.8rem 1rem;
+	min-width: 82px;
+	padding: 0.55rem 0.75rem;
 	border: 1px solid var(--em-border);
 	background: var(--em-chip);
-	border-radius: 14px;
+	border-radius: 12px;
 	cursor: pointer;
 	color: var(--em-text);
 	transition: background .15s, border-color .15s, transform .1s;
 }
 .emc-slot.is-available:hover { background: var(--em-chip-hover); border-color: #3b3b47; }
 .emc-slot.is-available:active { transform: scale(0.97); }
-.emc-slot-time { font-size: 1.35rem; font-weight: 800; letter-spacing: 0.01em; }
-.emc-slot-date { font-size: 0.76rem; color: var(--em-muted); margin-top: 2px; }
-.emc-slot-price { font-size: 0.9rem; color: var(--em-muted); margin-top: 4px; }
+.emc-slot-time { font-size: 1.02rem; font-weight: 800; letter-spacing: 0.01em; }
+.emc-slot-date { font-size: 0.66rem; color: var(--em-muted); margin-top: 1px; }
 .emc-slot.is-locked {
 	cursor: not-allowed;
 	background: var(--em-panel-2);
 	color: var(--em-faint);
 	border-style: dashed;
 	border-color: #2b2b34;
-	min-width: 74px;
+	min-width: 58px;
 }
-.emc-slot-lock { font-size: 1.2rem; opacity: 0.5; }
+.emc-slot-lock { font-size: 0.95rem; opacity: 0.5; }
 
 /* vista settimana */
 .emc-week .emc-week-grid {
@@ -236,10 +235,10 @@
 	display: flex; gap: 1.4rem; flex-wrap: wrap;
 	margin-top: 1.3rem; padding-top: 1rem;
 	border-top: 1px solid var(--em-border);
-	font-size: 0.95rem; color: var(--em-muted);
+	font-size: 0.82rem; color: var(--em-muted);
 }
-.emc-legend-item { display: inline-flex; align-items: center; gap: 0.45rem; }
-.emc-dot-c { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.emc-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
+.emc-dot-c { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .emc-dot-available { background: var(--em-accent); }
 .emc-dot-locked { background: var(--em-faint); }
 
