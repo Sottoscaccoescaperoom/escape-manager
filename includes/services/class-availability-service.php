@@ -21,8 +21,37 @@ final class Availability_Service {
 		private Room_Repository $rooms = new Room_Repository(),
 		private Room_Time_Slot_Repository $time_slots = new Room_Time_Slot_Repository(),
 		private Booking_Repository $bookings = new Booking_Repository(),
-		private Lock_Repository $locks = new Lock_Repository()
+		private Lock_Repository $locks = new Lock_Repository(),
+		private Pricing_Service $pricing = new Pricing_Service()
 	) {}
+
+	/**
+	 * Disponibilità su un intervallo di giorni consecutivi (vista Settimana).
+	 *
+	 * @return array Lista per giorno: [{ date: 'Y-m-d', rooms: [...] }]
+	 */
+	public function slots_for_range( string $start_date, int $days = 1, ?int $room_id = null, ?int $location_id = null ): array {
+		$days      = max( 1, min( 31, $days ) );
+		$tz_string = em_setting( 'em_timezone', 'Europe/Rome' );
+		$tz        = new \DateTimeZone( $tz_string );
+
+		try {
+			$start = new \DateTimeImmutable( $start_date . ' 00:00:00', $tz );
+		} catch ( \Exception $e ) {
+			return array();
+		}
+
+		$out = array();
+		for ( $i = 0; $i < $days; $i++ ) {
+			$d = $start->modify( "+{$i} days" )->format( 'Y-m-d' );
+			$out[] = array(
+				'date'  => $d,
+				'rooms' => $this->slots_for_date( $d, $room_id, $location_id ),
+			);
+		}
+
+		return $out;
+	}
 
 	/**
 	 * @param string   $date          'YYYY-MM-DD' (local timezone)
@@ -84,7 +113,9 @@ final class Availability_Service {
 				'duration_minutes' => $duration,
 				'min_players'      => (int) $room['min_players'],
 				'max_players'      => (int) $room['max_players'],
+				'difficulty'       => isset( $room['difficulty'] ) && '' !== $room['difficulty'] ? (int) $room['difficulty'] : null,
 				'image_url'        => $room['image_url'],
+				'price_from_cents' => $this->pricing->calculate( $room_id_int, (int) $room['min_players'] ),
 				'slots'            => $slots,
 			);
 		}

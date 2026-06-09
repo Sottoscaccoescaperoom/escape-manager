@@ -1,11 +1,9 @@
 /**
  * Escape Manager — Booking pubblico (no-build, ESM via CDN).
+ * UI in stile Escape Navigator: vista Giorno/Settimana, striscia giorni,
+ * righe stanza con chip orario (prezzo) e lucchetto per gli slot non disponibili.
  *
- * Configurazione iniettata da PHP in window.EM_BOOKING_CONFIG.
- * Monta su #em-booking-root.
- *
- * Per sostituire con un bundle Vite in futuro: tieni stesso ID root
- * e stesso shape di config.
+ * Configurazione iniettata da PHP in window.EM_BOOKING_CONFIG. Monta su #em-booking-root.
  */
 
 import { h, render } from 'https://esm.sh/preact@10.22.0';
@@ -16,6 +14,10 @@ const html = htm.bind(h);
 
 const CONFIG = window.EM_BOOKING_CONFIG || {};
 const LS_SESSION_KEY = 'em_booking_session_id';
+const LS_ACTIVE_LOCK = 'em_booking_active_lock';
+
+const DIFFICULTY = { 1: 'Facile', 2: 'Leggero', 3: 'Media', 4: 'Sopra la media', 5: 'Difficile' };
+const SLOT_TITLE = { locked: 'In prenotazione da altri', booked: 'Prenotato', blocked: 'Non disponibile' };
 
 function getSessionId() {
 	let s = localStorage.getItem(LS_SESSION_KEY);
@@ -31,61 +33,262 @@ function getSessionId() {
 async function api(method, path, body = null) {
 	const opts = {
 		method,
-		headers: {
-			'Content-Type': 'application/json',
-			'X-WP-Nonce': CONFIG.nonce,
-		},
+		headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': CONFIG.nonce },
 	};
 	if (body) opts.body = JSON.stringify(body);
 	const res = await fetch(CONFIG.apiBase + path, opts);
 	const data = await res.json().catch(() => ({}));
 	if (!res.ok) {
-		const err = data?.error || { code: 'HTTP_' + res.status, message: 'Errore di rete' };
-		throw err;
+		throw data?.error || { code: 'HTTP_' + res.status, message: 'Errore di rete' };
 	}
 	return data;
 }
 
+/** Rilascia (lato server) e dimentica l'eventuale lock salvato per questa sessione. */
+async function releaseStoredLock() {
+	let saved = null;
+	try { saved = JSON.parse(localStorage.getItem(LS_ACTIVE_LOCK) || 'null'); } catch (_) {}
+	if (saved && saved.lock && saved.lock.lock_id) {
+		try { await api('DELETE', `/temporary-lock/${saved.lock.lock_id}?session_id=${encodeURIComponent(getSessionId())}`); } catch (_) {}
+	}
+	localStorage.removeItem(LS_ACTIVE_LOCK);
+}
+
+// ── Formattazione ──
+
 function formatMoney(cents, currency = CONFIG.currency || 'EUR') {
 	return (cents / 100).toFixed(2).replace('.', ',') + ' ' + currency;
 }
-
+function formatPriceShort(cents) {
+	if (cents == null) return '';
+	const e = cents / 100;
+	return (Number.isInteger(e) ? String(e) : e.toFixed(2).replace('.', ',')) + ' €';
+}
 function formatTime(iso) {
 	const d = new Date(iso);
 	return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: CONFIG.timezone });
 }
-
 function formatDate(iso) {
 	const d = new Date(iso);
 	return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-function todayISO() {
+// ── Helper date (TZ-safe, lavorano su 'YYYY-MM-DD' locale) ──
+
+function isoToday() {
 	const d = new Date();
-	return d.toISOString().slice(0, 10);
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function isoAddDays(iso, n) {
+	const d = new Date(iso + 'T00:00:00');
+	d.setDate(d.getDate() + n);
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function weekdayShort(iso) {
+	return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '').slice(0, 2);
+}
+function dayNum(iso) {
+	return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit' });
+}
+function monthShort(iso) {
+	return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
+}
+function dayMonthShort(iso) { return dayNum(iso) + ' ' + monthShort(iso); }
+function pickerLabel(iso) {
+	const m = monthShort(iso);
+	return dayNum(iso) + ' ' + m.charAt(0).toUpperCase() + m.slice(1);
+}
+function difficultyLabel(n) { return n && DIFFICULTY[n] ? DIFFICULTY[n] : null; }
+
+// ── Calendario (Step 0) in stile Escape Navigator ──
+
+function Avatar({ name, img }) {
+	return html`<div class="emc-avatar">${img
+		? html`<img src=${img} alt=${name} />`
+		: html`<span>${(name || '?').charAt(0).toUpperCase()}</span>`}</div>`;
 }
 
-// ── Components ──
+function SlotChip({ room, slot, dayDate, onPick }) {
+	const avail = slot.status === 'available';
+	const slotDate = (slot.start || '').slice(0, 10);
+	const crossesDay = dayDate && slotDate && slotDate !== dayDate;
+	return html`
+		<button
+			key=${slot.start}
+			class=${'emc-slot ' + (avail ? 'is-available' : 'is-locked')}
+			disabled=${!avail}
+			title=${SLOT_TITLE[slot.status] || ''}
+			onClick=${() => avail && onPick(room, slot)}>
+			${avail ? html`
+				<span class="emc-slot-time">${formatTime(slot.start)}</span>
+				${crossesDay ? html`<span class="emc-slot-date">${dayMonthShort(slotDate)}</span>` : ''}
+				${room.price_from_cents != null ? html`<span class="emc-slot-price">${formatPriceShort(room.price_from_cents)}</span>` : ''}
+			` : html`<span class="emc-slot-lock">🔒</span>`}
+		</button>`;
+}
 
-function Stepper({ current, total }) {
-	const steps = ['Data e ora', 'Partecipanti', 'I tuoi dati', 'Riepilogo', 'Conferma'];
+function RoomHead({ room }) {
+	const diff = difficultyLabel(room.difficulty);
+	return html`
+		<div class="emc-room-head">
+			<${Avatar} name=${room.room_name} img=${room.image_url} />
+			<div>
+				<div class="emc-room-name">${room.room_name}</div>
+				<div class="emc-room-meta">
+					${room.min_players} - ${room.max_players} persone <span class="emc-dot">·</span> ${room.duration_minutes} min.${diff ? html` <span class="emc-dot">·</span> ${diff}` : ''}
+				</div>
+			</div>
+		</div>`;
+}
+
+function Step1_Calendar({ onPick }) {
+	const [view, setView] = useState('day');
+	const [selectedDate, setSelectedDate] = useState(isoToday());
+	const [stripStart, setStripStart] = useState(isoToday());
+	const [data, setData] = useState(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(null);
+
+	const STRIP = 9;
+
+	useEffect(() => {
+		setLoading(true); setError(null);
+		const qs = new URLSearchParams();
+		if (view === 'day') { qs.set('date', selectedDate); qs.set('days', '1'); }
+		else { qs.set('date', stripStart); qs.set('days', '7'); }
+		if (CONFIG.locationId) qs.set('location_id', CONFIG.locationId);
+		api('GET', '/availability?' + qs.toString())
+			.then(r => setData(r.data || []))
+			.catch(e => setError(e.message))
+			.finally(() => setLoading(false));
+	}, [view, selectedDate, stripStart]);
+
+	const stripDays = useMemo(() => {
+		const arr = [];
+		for (let i = 0; i < STRIP; i++) arr.push(isoAddDays(stripStart, i));
+		return arr;
+	}, [stripStart]);
+
+	const shift = (n) => {
+		const ns = isoAddDays(stripStart, n);
+		setStripStart(ns);
+		if (view === 'day') setSelectedDate(ns);
+	};
+	const onPrev = () => shift(view === 'week' ? -7 : -STRIP);
+	const onNext = () => shift(view === 'week' ? 7 : STRIP);
+	const onPickDate = (iso) => {
+		if (!iso) return;
+		setSelectedDate(iso);
+		setStripStart(iso);
+	};
+
+	const dayRooms = (view === 'day' && data && data[0]) ? data[0].rooms : [];
+	const weekRooms = (view === 'week' && data && data[0]) ? data[0].rooms : [];
+
+	return html`
+		<div class="emc">
+			<div class="emc-topbar">
+				<div class="emc-toggle">
+					<button class=${view === 'week' ? 'is-active' : ''} onClick=${() => setView('week')}>Settimana</button>
+					<button class=${view === 'day' ? 'is-active' : ''} onClick=${() => setView('day')}>Giorno</button>
+				</div>
+				<label class="emc-datepick">
+					<span class="emc-cal-ico">📅</span>
+					<span class="emc-datepick-label">${pickerLabel(view === 'day' ? selectedDate : stripStart)}</span>
+					<span class="emc-caret">▾</span>
+					<input type="date" value=${view === 'day' ? selectedDate : stripStart} onInput=${e => onPickDate(e.target.value)} />
+				</label>
+			</div>
+
+			<div class="emc-strip">
+				<button class="emc-arrow" onClick=${onPrev} aria-label="Precedente">‹</button>
+				<div class="emc-days">
+					${stripDays.map(iso => html`
+						<button key=${iso}
+							class=${'emc-day ' + (view === 'day' && iso === selectedDate ? 'is-active' : '')}
+							onClick=${() => onPickDate(iso)}>
+							<span class="emc-day-wd">${weekdayShort(iso)}</span>
+							<span class="emc-day-dm">${dayMonthShort(iso)}</span>
+						</button>`)}
+				</div>
+				<button class="emc-arrow" onClick=${onNext} aria-label="Successivo">›</button>
+			</div>
+
+			${loading && html`<div class="emc-loading">Caricamento orari…</div>`}
+			${error && html`<div class="emc-error">${error}</div>`}
+
+			${!loading && !error && view === 'day' && html`
+				<div class="emc-body">
+					${dayRooms.length === 0 && html`<div class="emc-empty">Nessuna stanza disponibile per questa data.</div>`}
+					${dayRooms.map(room => html`
+						<div class="emc-room" key=${room.room_id}>
+							<${RoomHead} room=${room} />
+							<div class="emc-slots">
+								${room.slots.length === 0
+									? html`<span class="emc-slot-empty">Nessun orario</span>`
+									: room.slots.map(slot => SlotChip({ room, slot, dayDate: selectedDate, onPick }))}
+							</div>
+						</div>`)}
+				</div>`}
+
+			${!loading && !error && view === 'week' && html`
+				<div class="emc-body emc-week">
+					${weekRooms.length === 0 && html`<div class="emc-empty">Nessuna stanza disponibile.</div>`}
+					${weekRooms.map(r0 => html`
+						<div class="emc-room" key=${r0.room_id}>
+							<${RoomHead} room=${r0} />
+							<div class="emc-week-grid">
+								${data.map(day => {
+									const r = day.rooms.find(x => x.room_id === r0.room_id) || { slots: [] };
+									const avail = r.slots.filter(s => s.status === 'available');
+									return html`
+										<div class="emc-week-col" key=${day.date}>
+											<div class="emc-week-colhead">
+												<span class="emc-day-wd">${weekdayShort(day.date)}</span>
+												<span class="emc-week-colnum">${dayNum(day.date)}</span>
+											</div>
+											<div class="emc-week-colslots">
+												${avail.length === 0
+													? html`<span class="emc-week-empty">—</span>`
+													: avail.map(slot => SlotChip({ room: r0, slot, dayDate: day.date, onPick }))}
+											</div>
+										</div>`;
+								})}
+							</div>
+						</div>`)}
+				</div>`}
+
+			<div class="emc-legend">
+				<span class="emc-legend-item"><span class="emc-dot-c emc-dot-available"></span> Disponibile</span>
+				<span class="emc-legend-item"><span class="emc-dot-c emc-dot-locked"></span> Occupato</span>
+			</div>
+		</div>`;
+}
+
+// ── Stepper + countdown ──
+
+function Stepper({ current }) {
+	const steps = ['Partecipanti', 'I tuoi dati', 'Riepilogo', 'Conferma'];
 	return html`
 		<div class="em-stepper">
-			${steps.map((label, i) => html`
-				<div class=${'em-step ' + (i === current ? 'is-active' : '') + (i < current ? ' is-done' : '')}>
-					<span class="em-step-num">${i + 1}</span>
-					<span class="em-step-label">${label}</span>
-				</div>
-			`)}
-		</div>
-	`;
+			${steps.map((label, i) => {
+				const idx = i + 1; // step 0 è il calendario, non nello stepper
+				return html`
+					<div class=${'em-step ' + (idx === current ? 'is-active' : '') + (idx < current ? ' is-done' : '')}>
+						<span class="em-step-num">${idx}</span>
+						<span class="em-step-label">${label}</span>
+					</div>`;
+			})}
+		</div>`;
 }
 
 function Countdown({ expiresAt, onExpire }) {
 	const [remaining, setRemaining] = useState(0);
 	useEffect(() => {
+		// expires_at arriva dal server in UTC ('YYYY-MM-DD HH:MM:SS') → forziamo l'interpretazione UTC.
+		const target = new Date(String(expiresAt).replace(' ', 'T') + 'Z').getTime();
 		const tick = () => {
-			const diff = new Date(expiresAt).getTime() - Date.now();
+			const diff = target - Date.now();
 			setRemaining(Math.max(0, Math.floor(diff / 1000)));
 			if (diff <= 0) onExpire();
 		};
@@ -96,80 +299,6 @@ function Countdown({ expiresAt, onExpire }) {
 	const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
 	const ss = String(remaining % 60).padStart(2, '0');
 	return html`<div class="em-countdown">⏱ ${mm}:${ss} per completare</div>`;
-}
-
-function Step1_DateRoomSlot({ onPick }) {
-	const [date, setDate] = useState(todayISO());
-	const [data, setData] = useState(null);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState(null);
-
-	useEffect(() => {
-		setLoading(true);
-		setError(null);
-		const qs = new URLSearchParams({ date });
-		if (CONFIG.locationId) qs.set('location_id', CONFIG.locationId);
-		api('GET', '/availability?' + qs.toString())
-			.then(r => setData(r.data || []))
-			.catch(e => setError(e.message))
-			.finally(() => setLoading(false));
-	}, [date]);
-
-	const dateOptions = useMemo(() => {
-		const arr = [];
-		for (let i = 0; i < 30; i++) {
-			const d = new Date();
-			d.setDate(d.getDate() + i);
-			arr.push(d.toISOString().slice(0, 10));
-		}
-		return arr;
-	}, []);
-
-	return html`
-		<div class="em-step1">
-			<h2>Scegli data e orario</h2>
-			<div class="em-date-picker">
-				<label>Data:
-					<select value=${date} onChange=${e => setDate(e.target.value)}>
-						${dateOptions.map(d => html`<option value=${d}>${formatDate(d + 'T12:00:00')}</option>`)}
-					</select>
-				</label>
-			</div>
-
-			${loading && html`<p class="em-loading">Caricamento orari…</p>`}
-			${error && html`<p class="em-error">${error}</p>`}
-
-			${data && data.length === 0 && html`<p class="em-empty">Nessuna stanza disponibile per questa data.</p>`}
-
-			${data && data.map(room => html`
-				<div class="em-room-card" key=${room.room_id}>
-					${room.image_url && html`<img src=${room.image_url} alt=${room.room_name} />`}
-					<div class="em-room-info">
-						<h3>${room.room_name}</h3>
-						<p class="em-room-meta">${room.duration_minutes} min · ${room.min_players}-${room.max_players} giocatori</p>
-						<div class="em-slots">
-							${room.slots.length === 0 && html`<p class="em-slot-empty">Nessun orario disponibile</p>`}
-							${room.slots.map(slot => html`
-								<button
-									class=${'em-slot em-slot-' + slot.status}
-									disabled=${slot.status !== 'available'}
-									onClick=${() => slot.status === 'available' && onPick(room, slot)}
-									title=${slot.status === 'locked' ? 'In fase di prenotazione' : slot.status === 'booked' ? 'Prenotato' : slot.status === 'blocked' ? 'Non disponibile' : ''}>
-									${formatTime(slot.start)}
-								</button>
-							`)}
-						</div>
-					</div>
-				</div>
-			`)}
-
-			<div class="em-legend">
-				<span class="em-legend-item"><span class="em-dot em-dot-available"></span> Disponibile</span>
-				<span class="em-legend-item"><span class="em-dot em-dot-locked"></span> In prenotazione da altri</span>
-				<span class="em-legend-item"><span class="em-dot em-dot-booked"></span> Prenotato</span>
-			</div>
-		</div>
-	`;
 }
 
 function Step2_Participants({ room, onNext, onBack }) {
@@ -212,14 +341,11 @@ function Step2_Participants({ room, onNext, onBack }) {
 				<button class="em-btn em-btn-secondary" onClick=${onBack}>Indietro</button>
 				<button class="em-btn em-btn-primary" disabled=${!valid} onClick=${() => onNext({ adults, children, customer_comment: comment })}>Continua</button>
 			</div>
-		</div>
-	`;
+		</div>`;
 }
 
 function Step3_Customer({ requiredFields, onNext, onBack }) {
-	const [form, setForm] = useState({
-		first_name: '', last_name: '', phone: '', email: '', birthday: '', address: '',
-	});
+	const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', email: '', birthday: '', address: '' });
 	const set = (k, v) => setForm({ ...form, [k]: v });
 
 	const req = requiredFields || {};
@@ -256,45 +382,37 @@ function Step3_Customer({ requiredFields, onNext, onBack }) {
 				${req.birthday && html`
 					<label>Data di nascita
 						<input type="date" value=${form.birthday} onInput=${e => set('birthday', e.target.value)} />
-					</label>
-				`}
+					</label>`}
 				${req.address && html`
 					<label>Indirizzo
 						<input value=${form.address} onInput=${e => set('address', e.target.value)} />
-					</label>
-				`}
+					</label>`}
 			</div>
 
 			<div class="em-actions">
 				<button class="em-btn em-btn-secondary" onClick=${onBack}>Indietro</button>
 				<button class="em-btn em-btn-primary" disabled=${!valid} onClick=${() => onNext({ customer: form })}>Continua</button>
 			</div>
-		</div>
-	`;
+		</div>`;
 }
 
 function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, submitting, error }) {
 	const [method, setMethod] = useState('on_site');
 	const [accepted, setAccepted] = useState(false);
 	const [promoInput, setPromoInput] = useState('');
-	const [promoApplied, setPromoApplied] = useState(null); // { code, discount_cents, type: 'promocode'|'voucher' }
+	const [promoApplied, setPromoApplied] = useState(null);
 	const [promoError, setPromoError] = useState(null);
 	const [validating, setValidating] = useState(false);
-
-	// Stima totale lato client: useremo l'output server per la cifra esatta
-	const totalPlayers = participants.adults + participants.children;
 
 	const applyCode = async () => {
 		if (!promoInput) return;
 		setValidating(true); setPromoError(null);
 		try {
-			// Prima tenta promocode
 			try {
 				const r = await api('POST', '/promocodes/validate', { code: promoInput, amount_cents: 9999999 });
 				setPromoApplied({ code: r.data.code, discount_cents: r.data.discount_cents, type: 'promocode' });
 				return;
-			} catch {}
-			// Poi tenta voucher
+			} catch (_) {}
 			const r2 = await api('POST', '/vouchers/validate', { code: promoInput, amount_cents: 9999999 });
 			setPromoApplied({ code: r2.data.code, discount_cents: r2.data.discount_cents, type: 'voucher' });
 		} catch (e) {
@@ -307,9 +425,7 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 
 	const onSubmit = () => {
 		const payload = { payment_method: method };
-		if (promoApplied) {
-			payload[promoApplied.type === 'voucher' ? 'voucher_code' : 'promocode'] = promoApplied.code;
-		}
+		if (promoApplied) payload[promoApplied.type === 'voucher' ? 'voucher_code' : 'promocode'] = promoApplied.code;
 		onConfirm(payload);
 	};
 
@@ -339,8 +455,7 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 				<div class="em-promo-applied">
 					✓ <strong>${promoApplied.code}</strong> applicato (sconto fino a ${formatMoney(promoApplied.discount_cents)})
 					<button class="em-link" onClick=${removeCode}>rimuovi</button>
-				</div>
-			`}
+				</div>`}
 
 			<h3>Metodo di pagamento</h3>
 			<div class="em-payment-methods">
@@ -363,8 +478,7 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 					${submitting ? 'Invio in corso…' : 'Conferma prenotazione'}
 				</button>
 			</div>
-		</div>
-	`;
+		</div>`;
 }
 
 function Step5_Result({ booking, onReset }) {
@@ -376,8 +490,7 @@ function Step5_Result({ booking, onReset }) {
 			<p>Ti aspettiamo il ${formatDate(booking.start_datetime)} alle ${formatTime(booking.start_datetime)} per <strong>${booking.room?.name}</strong>.</p>
 			<p>Riceverai una mail di conferma all'indirizzo fornito.</p>
 			<button class="em-btn em-btn-secondary" onClick=${onReset}>Nuova prenotazione</button>
-		</div>
-	`;
+		</div>`;
 }
 
 function LockExpiredModal({ onRestart }) {
@@ -388,8 +501,7 @@ function LockExpiredModal({ onRestart }) {
 				<p>Il tempo per completare questa prenotazione è scaduto. Riseleziona un orario.</p>
 				<button class="em-btn em-btn-primary" onClick=${onRestart}>Ricomincia</button>
 			</div>
-		</div>
-	`;
+		</div>`;
 }
 
 function App() {
@@ -404,7 +516,25 @@ function App() {
 	const [error, setError] = useState(null);
 	const [lockExpired, setLockExpired] = useState(false);
 
+	// Resume: se ricarico la pagina con un lock ancora valido, riprendo dallo step Partecipanti.
+	useEffect(() => {
+		let saved = null;
+		try { saved = JSON.parse(localStorage.getItem(LS_ACTIVE_LOCK) || 'null'); } catch (_) {}
+		if (saved && saved.lock && saved.lock.lock_id && saved.savedAt) {
+			const ttlMs = (CONFIG.lockTtlMin || 10) * 60 * 1000;
+			if (Date.now() - saved.savedAt < ttlMs) {
+				setSelectedRoom(saved.room);
+				setSelectedSlot(saved.slot);
+				setLock(saved.lock);
+				setStep(1);
+			} else {
+				localStorage.removeItem(LS_ACTIVE_LOCK);
+			}
+		}
+	}, []);
+
 	const reset = useCallback(() => {
+		releaseStoredLock();
 		setStep(0);
 		setSelectedRoom(null);
 		setSelectedSlot(null);
@@ -419,6 +549,8 @@ function App() {
 	const pickSlot = useCallback(async (room, slot) => {
 		setError(null);
 		try {
+			// Abbandona un eventuale hold precedente (back/reload) per evitare il blocco "un lock per sessione".
+			await releaseStoredLock();
 			const result = await api('POST', '/temporary-lock', {
 				room_id: room.room_id,
 				start_datetime: slot.start,
@@ -428,13 +560,20 @@ function App() {
 			setSelectedSlot(slot);
 			setLock(result.data);
 			setStep(1);
+			try { localStorage.setItem(LS_ACTIVE_LOCK, JSON.stringify({ lock: result.data, room, slot, savedAt: Date.now() })); } catch (_) {}
 		} catch (e) {
 			setError(e.message || 'Errore nella prenotazione dello slot');
 			alert(e.message || 'Slot non più disponibile, riprova');
 		}
 	}, []);
 
-	const confirm = useCallback(async ({ payment_method }) => {
+	const backToCalendar = useCallback(async () => {
+		await releaseStoredLock();
+		setLock(null);
+		setStep(0);
+	}, []);
+
+	const confirm = useCallback(async ({ payment_method, promocode, voucher_code }) => {
 		setSubmitting(true);
 		setError(null);
 		try {
@@ -446,7 +585,10 @@ function App() {
 				customer_comment: participants.customer_comment,
 				customer,
 				payment_method,
+				promocode,
+				voucher_code,
 			});
+			localStorage.removeItem(LS_ACTIVE_LOCK);
 			setBooking(r.data);
 			setStep(4);
 		} catch (e) {
@@ -462,16 +604,15 @@ function App() {
 
 	return html`
 		<div class="em-booking-app">
-			<${Stepper} current=${step} />
+			${step > 0 && html`<${Stepper} current=${step} />`}
 			${lock && step > 0 && step < 4 && html`<${Countdown} expiresAt=${lock.expires_at} onExpire=${() => setLockExpired(true)} />`}
 
-			${step === 0 && html`<${Step1_DateRoomSlot} onPick=${pickSlot} />`}
-			${step === 1 && html`<${Step2_Participants} room=${selectedRoom} onNext=${p => { setParticipants(p); setStep(2); }} onBack=${() => setStep(0)} />`}
+			${step === 0 && html`<${Step1_Calendar} onPick=${pickSlot} />`}
+			${step === 1 && html`<${Step2_Participants} room=${selectedRoom} onNext=${p => { setParticipants(p); setStep(2); }} onBack=${backToCalendar} />`}
 			${step === 2 && html`<${Step3_Customer} requiredFields=${CONFIG.requiredFields} onNext=${c => { setCustomer(c.customer); setStep(3); }} onBack=${() => setStep(1)} />`}
 			${step === 3 && html`<${Step4_Summary} room=${selectedRoom} slot=${selectedSlot} participants=${participants} customer=${customer} onConfirm=${confirm} onBack=${() => setStep(2)} submitting=${submitting} error=${error} />`}
 			${step === 4 && booking && html`<${Step5_Result} booking=${booking} onReset=${reset} />`}
-		</div>
-	`;
+		</div>`;
 }
 
 const root = document.getElementById('em-booking-root');
