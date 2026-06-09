@@ -354,3 +354,51 @@
 	background: var(--em-panel); border: 1px solid var(--em-border);
 	border-radius: 16px; padding: 1.8rem; max-width: 420px; text-align: center; color: var(--em-text);
 }
+
+/* ===== Step Partecipanti (fasce) ===== */
+.em-muted-p { color: var(--em-muted); margin-bottom: 1rem; }
+.em-num-label { display: flex; flex-direction: column; }
+.em-num-label .em-hint { color: var(--em-faint); font-size: 0.78rem; margin-top: 1px; }
+.em-info-box {
+	margin-top: 1rem; padding: 0.85rem 1rem;
+	background: var(--em-panel-2); border: 1px solid var(--em-border);
+	border-radius: 12px; font-size: 0.88rem; color: var(--em-muted); line-height: 1.5;
+}
+.em-info-box strong { color: var(--em-text); }
+.em-info-box.em-info-ok {
+	background: rgba(52,211,153,0.10); border-color: rgba(52,211,153,0.4); color: #b9f3da;
+}
+.em-info-box.em-info-ok strong { color: #eafff7; }
+
+/* ===== Step Evento ===== */
+.em-event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 0.4rem; }
+.em-event-opt {
+	display: flex; align-items: center; gap: 0.6rem;
+	padding: 0.85rem 1rem; border-radius: 12px;
+	border: 1px solid var(--em-border); background: var(--em-chip); color: var(--em-text);
+	cursor: pointer; font-size: 0.95rem; font-weight: 600; text-align: left;
+	transition: border-color .15s, background .15s;
+}
+.em-event-opt:hover { background: var(--em-chip-hover); }
+.em-event-opt.is-active { border-color: var(--em-accent); background: rgba(47,109,246,0.12); }
+.em-event-ico { font-size: 1.3rem; }
+.em-field { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 1rem; color: var(--em-muted); font-size: 0.9rem; }
+.em-addon {
+	display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem;
+	padding: 0.8rem 1rem; border: 1px solid var(--em-border); border-radius: 12px;
+	background: var(--em-panel-2); cursor: pointer; color: var(--em-text); font-size: 0.92rem;
+}
+.em-addon input { width: auto; }
+
+/* ===== Box prezzo nel riepilogo ===== */
+.em-price-box {
+	margin: 1.2rem 0; padding: 1rem 1.1rem;
+	background: var(--em-panel-2); border: 1px solid var(--em-border); border-radius: 14px;
+}
+.em-price-row { display: flex; justify-content: space-between; padding: 0.35rem 0; color: var(--em-text); font-size: 0.95rem; }
+.em-price-row.em-discount span:last-child { color: var(--em-ok); }
+.em-price-row.em-price-total {
+	margin-top: 0.5rem; padding-top: 0.7rem; border-top: 1px solid var(--em-border);
+	font-size: 1.25rem; font-weight: 800;
+}
+.em-price-row.em-price-total span:last-child { color: var(--em-accent); }

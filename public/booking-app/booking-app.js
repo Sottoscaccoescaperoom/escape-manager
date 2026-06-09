@@ -267,7 +267,7 @@ function Step1_Calendar({ onPick }) {
 // ── Stepper + countdown ──
 
 function Stepper({ current }) {
-	const steps = ['Partecipanti', 'I tuoi dati', 'Riepilogo', 'Conferma'];
+	const steps = ['Partecipanti', 'Evento', 'I tuoi dati', 'Riepilogo', 'Conferma'];
 	return html`
 		<div class="em-stepper">
 			${steps.map((label, i) => {
@@ -300,45 +300,116 @@ function Countdown({ expiresAt, onExpire }) {
 	return html`<div class="em-countdown">⏱ ${mm}:${ss} per completare</div>`;
 }
 
+function Counter({ label, hint, value, set, min }) {
+	const lo = min || 0;
+	return html`
+		<div class="em-num-input">
+			<div class="em-num-label"><span>${label}</span>${hint ? html`<small class="em-hint">${hint}</small>` : ''}</div>
+			<div class="em-counter">
+				<button onClick=${() => set(Math.max(lo, value - 1))}>−</button>
+				<span>${value}</span>
+				<button onClick=${() => set(value + 1)}>+</button>
+			</div>
+		</div>`;
+}
+
 function Step2_Participants({ room, onNext, onBack }) {
-	const [adults, setAdults] = useState(room.min_players);
-	const [children, setChildren] = useState(0);
-	const [comment, setComment] = useState('');
-	const total = adults + children;
-	const valid = total >= room.min_players && total <= room.max_players;
+	const [adults, setAdults] = useState(Math.max(room.min_players, 1));
+	const [reduced, setReduced] = useState(0);
+	const [free, setFree] = useState(0);
+	const players = adults + reduced + free;
+	const valid = players >= room.min_players && players <= room.max_players;
 
 	return html`
 		<div class="em-step2">
 			<h2>Quanti siete?</h2>
-			<p>Stanza: <strong>${room.room_name}</strong> · ${room.min_players}-${room.max_players} giocatori</p>
+			<p class="em-muted-p">Stanza <strong>${room.room_name}</strong> · ${room.min_players}-${room.max_players} giocatori</p>
 
-			<div class="em-num-input">
-				<label>Adulti</label>
-				<div class="em-counter">
-					<button onClick=${() => setAdults(Math.max(0, adults - 1))}>−</button>
-					<span>${adults}</span>
-					<button onClick=${() => setAdults(adults + 1)}>+</button>
-				</div>
+			${Counter({ label: 'Adulti', hint: '13+ anni · tariffa piena', value: adults, set: setAdults })}
+			${Counter({ label: 'Ragazzi', hint: '7-12 anni · ridotto €15', value: reduced, set: setReduced })}
+			${Counter({ label: 'Bambini', hint: '0-6 anni · gratis', value: free, set: setFree })}
+
+			<div class="em-info-box">
+				ℹ️ I bambini <strong>0-6 anni</strong> entrano <strong>gratis</strong>; i ragazzi <strong>7-12</strong> pagano un ridotto di <strong>€15</strong>; dai <strong>13 anni</strong> tariffa piena. Il totale esatto lo vedi nel riepilogo.
 			</div>
 
-			<div class="em-num-input">
-				<label>Bambini</label>
-				<div class="em-counter">
-					<button onClick=${() => setChildren(Math.max(0, children - 1))}>−</button>
-					<span>${children}</span>
-					<button onClick=${() => setChildren(children + 1)}>+</button>
-				</div>
+			${!valid && html`<p class="em-error">Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.</p>`}
+
+			<div class="em-actions">
+				<button class="em-btn em-btn-secondary" onClick=${onBack}>Indietro</button>
+				<button class="em-btn em-btn-primary" disabled=${!valid} onClick=${() => onNext({ adults, children_reduced: reduced, children_free: free })}>Continua</button>
+			</div>
+		</div>`;
+}
+
+const EVENT_TYPES = [
+	{ id: 'standard',       label: 'Gioco standard',     icon: '🎮' },
+	{ id: 'compleanno',     label: 'Compleanno',         icon: '🎂' },
+	{ id: 'addio_celibato', label: 'Addio al celibato',  icon: '🤵' },
+	{ id: 'addio_nubilato', label: 'Addio al nubilato',  icon: '👰' },
+	{ id: 'team_building',  label: 'Team building',      icon: '🤝' },
+];
+const CELEBRATIONS = new Set(['compleanno', 'addio_celibato', 'addio_nubilato']);
+const EVENT_LABEL_FIELD = {
+	compleanno:     'Nome del festeggiato',
+	addio_celibato: 'Nome dello sposo',
+	addio_nubilato: 'Nome della sposa',
+	team_building:  'Nome azienda',
+};
+function eventLabelOf(id) { const e = EVENT_TYPES.find(x => x.id === id); return e ? e.label : id; }
+
+function Step_Event({ players, onNext, onBack }) {
+	const [eventType, setEventType] = useState('standard');
+	const [label, setLabel] = useState('');
+	const [gift, setGift] = useState(false);
+	const [comment, setComment] = useState('');
+	const [code, setCode] = useState('');
+
+	const isCeleb = CELEBRATIONS.has(eventType);
+	const fieldLabel = EVENT_LABEL_FIELD[eventType];
+	const labelRequired = isCeleb; // festeggiato obbligatorio; nome azienda opzionale
+	const valid = !labelRequired || label.trim().length > 0;
+
+	return html`
+		<div class="em-step-event">
+			<h2>Tipo di evento</h2>
+			<div class="em-event-grid">
+				${EVENT_TYPES.map(ev => html`
+					<button key=${ev.id} class=${'em-event-opt ' + (eventType === ev.id ? 'is-active' : '')} onClick=${() => setEventType(ev.id)}>
+						<span class="em-event-ico">${ev.icon}</span><span>${ev.label}</span>
+					</button>`)}
 			</div>
 
-			${!valid && html`<p class="em-error">Numero totale (${total}) deve essere tra ${room.min_players} e ${room.max_players}.</p>`}
+			${isCeleb && players >= 6 && html`<div class="em-info-box em-info-ok">🎉 Siete in ${players}: per questa occasione <strong>una persona non paga</strong> (−€22)!</div>`}
+			${isCeleb && players < 6 && html`<div class="em-info-box">Da <strong>6 giocatori</strong> in su, per le occasioni speciali una persona non paga. Ora siete in ${players}.</div>`}
 
-			<label class="em-textarea-label">Note/commento (opzionale)
-				<textarea value=${comment} onInput=${e => setComment(e.target.value)} rows="3" placeholder="Compleanno, dedica, esigenze speciali…"></textarea>
+			${fieldLabel && html`
+				<label class="em-field">${fieldLabel}${labelRequired ? ' *' : ''}
+					<input value=${label} onInput=${e => setLabel(e.target.value)} placeholder=${fieldLabel} />
+				</label>`}
+
+			<label class="em-addon">
+				<input type="checkbox" checked=${gift} onChange=${e => setGift(e.target.checked)} />
+				<span>🎁 Nascondi un regalo nella stanza <strong>+€5</strong></span>
+			</label>
+
+			<label class="em-field">Note (opzionale)
+				<textarea rows="2" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Allergie, dediche, esigenze speciali…"></textarea>
+			</label>
+
+			<label class="em-field">Codice sconto (opzionale)
+				<input value=${code} onInput=${e => setCode(e.target.value.toUpperCase())} placeholder="Es. PROMO10" />
 			</label>
 
 			<div class="em-actions">
 				<button class="em-btn em-btn-secondary" onClick=${onBack}>Indietro</button>
-				<button class="em-btn em-btn-primary" disabled=${!valid} onClick=${() => onNext({ adults, children, customer_comment: comment })}>Continua</button>
+				<button class="em-btn em-btn-primary" disabled=${!valid} onClick=${() => onNext({
+					event_type: eventType,
+					event_label: label.trim() || null,
+					addon_gift: gift,
+					customer_comment: comment.trim() || null,
+					discount_code: code.trim() || null,
+				})}>Continua</button>
 			</div>
 		</div>`;
 }
@@ -395,37 +466,31 @@ function Step3_Customer({ requiredFields, onNext, onBack }) {
 		</div>`;
 }
 
-function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, submitting, error }) {
+function Step4_Summary({ room, slot, participants, event, customer, onConfirm, onBack, submitting, error }) {
 	const [method, setMethod] = useState('on_site');
 	const [accepted, setAccepted] = useState(false);
-	const [promoInput, setPromoInput] = useState('');
-	const [promoApplied, setPromoApplied] = useState(null);
-	const [promoError, setPromoError] = useState(null);
-	const [validating, setValidating] = useState(false);
+	const [quote, setQuote] = useState(null);
+	const [qloading, setQloading] = useState(true);
+	const [qerror, setQerror] = useState(null);
 
-	const applyCode = async () => {
-		if (!promoInput) return;
-		setValidating(true); setPromoError(null);
-		try {
-			try {
-				const r = await api('POST', '/promocodes/validate', { code: promoInput, amount_cents: 9999999 });
-				setPromoApplied({ code: r.data.code, discount_cents: r.data.discount_cents, type: 'promocode' });
-				return;
-			} catch (_) {}
-			const r2 = await api('POST', '/vouchers/validate', { code: promoInput, amount_cents: 9999999 });
-			setPromoApplied({ code: r2.data.code, discount_cents: r2.data.discount_cents, type: 'voucher' });
-		} catch (e) {
-			setPromoError(e.message || 'Codice non valido');
-			setPromoApplied(null);
-		} finally { setValidating(false); }
-	};
+	useEffect(() => {
+		setQloading(true); setQerror(null);
+		api('POST', '/bookings/quote', {
+			adults: participants.adults,
+			children_reduced: participants.children_reduced,
+			children_free: participants.children_free,
+			event_type: event.event_type,
+			addon_gift: event.addon_gift,
+			code: event.discount_code,
+		}).then(r => setQuote(r.data)).catch(e => setQerror(e.message || 'Errore nel calcolo')).finally(() => setQloading(false));
+	}, []);
 
-	const removeCode = () => { setPromoApplied(null); setPromoInput(''); setPromoError(null); };
-
-	const onSubmit = () => {
-		const payload = { payment_method: method };
-		if (promoApplied) payload[promoApplied.type === 'voucher' ? 'voucher_code' : 'promocode'] = promoApplied.code;
-		onConfirm(payload);
+	const playersLabel = () => {
+		const p = [];
+		if (participants.adults) p.push(participants.adults + ' adulti');
+		if (participants.children_reduced) p.push(participants.children_reduced + ' ragazzi (7-12)');
+		if (participants.children_free) p.push(participants.children_free + ' bimbi (0-6)');
+		return p.join(' + ');
 	};
 
 	return html`
@@ -435,25 +500,23 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 				<div><strong>Stanza:</strong> ${room.room_name}</div>
 				<div><strong>Data:</strong> ${formatDate(slot.start)}</div>
 				<div><strong>Ora:</strong> ${formatTime(slot.start)}</div>
-				<div><strong>Giocatori:</strong> ${participants.adults} adulti${participants.children ? ' + ' + participants.children + ' bambini' : ''}</div>
+				<div><strong>Giocatori:</strong> ${playersLabel()}</div>
+				<div><strong>Evento:</strong> ${eventLabelOf(event.event_type)}${event.event_label ? ' · ' + event.event_label : ''}</div>
 				<div><strong>Nome:</strong> ${customer.first_name} ${customer.last_name}</div>
 				<div><strong>Telefono:</strong> ${customer.phone}</div>
 				${customer.email && html`<div><strong>Email:</strong> ${customer.email}</div>`}
-				${participants.customer_comment && html`<div><strong>Note:</strong> ${participants.customer_comment}</div>`}
+				${event.customer_comment && html`<div><strong>Note:</strong> ${event.customer_comment}</div>`}
 			</div>
 
-			<h3>Codice sconto / Voucher</h3>
-			${!promoApplied && html`
-				<div class="em-promo-row">
-					<input type="text" placeholder="Inserisci codice" value=${promoInput} onInput=${e => setPromoInput(e.target.value.toUpperCase())} />
-					<button class="em-btn em-btn-secondary" disabled=${!promoInput || validating} onClick=${applyCode}>${validating ? '…' : 'Applica'}</button>
-				</div>
-				${promoError && html`<p class="em-error" style="margin-top:0.5rem;">${promoError}</p>`}
-			`}
-			${promoApplied && html`
-				<div class="em-promo-applied">
-					✓ <strong>${promoApplied.code}</strong> applicato (sconto fino a ${formatMoney(promoApplied.discount_cents)})
-					<button class="em-link" onClick=${removeCode}>rimuovi</button>
+			${qloading && html`<p class="em-muted-p">Calcolo del totale…</p>`}
+			${qerror && html`<p class="em-error">${qerror}</p>`}
+			${quote && html`
+				<div class="em-price-box">
+					<div class="em-price-row"><span>Giocatori paganti</span><span>${formatMoney(quote.subtotal_cents)}</span></div>
+					${quote.event_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Sconto ${eventLabelOf(event.event_type)} (1 gratis)</span><span>−${formatMoney(quote.event_discount_cents)}</span></div>`}
+					${quote.code_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Codice ${quote.applied_code || ''}</span><span>−${formatMoney(quote.code_discount_cents)}</span></div>`}
+					${quote.addons_cents > 0 && html`<div class="em-price-row"><span>🎁 Regalo nascosto</span><span>+${formatMoney(quote.addons_cents)}</span></div>`}
+					<div class="em-price-row em-price-total"><span>Totale in cassa</span><span>${formatMoney(quote.total_cents)}</span></div>
 				</div>`}
 
 			<h3>Metodo di pagamento</h3>
@@ -473,7 +536,7 @@ function Step4_Summary({ room, slot, participants, customer, onConfirm, onBack, 
 
 			<div class="em-actions">
 				<button class="em-btn em-btn-secondary" onClick=${onBack} disabled=${submitting}>Indietro</button>
-				<button class="em-btn em-btn-primary" disabled=${!accepted || submitting} onClick=${onSubmit}>
+				<button class="em-btn em-btn-primary" disabled=${!accepted || submitting || qloading} onClick=${() => onConfirm({ payment_method: method })}>
 					${submitting ? 'Invio in corso…' : 'Conferma prenotazione'}
 				</button>
 			</div>
@@ -509,6 +572,7 @@ function App() {
 	const [selectedSlot, setSelectedSlot] = useState(null);
 	const [lock, setLock] = useState(null);
 	const [participants, setParticipants] = useState(null);
+	const [eventData, setEventData] = useState(null);
 	const [customer, setCustomer] = useState(null);
 	const [booking, setBooking] = useState(null);
 	const [submitting, setSubmitting] = useState(false);
@@ -539,6 +603,7 @@ function App() {
 		setSelectedSlot(null);
 		setLock(null);
 		setParticipants(null);
+		setEventData(null);
 		setCustomer(null);
 		setBooking(null);
 		setError(null);
@@ -572,7 +637,7 @@ function App() {
 		setStep(0);
 	}, []);
 
-	const confirm = useCallback(async ({ payment_method, promocode, voucher_code }) => {
+	const confirm = useCallback(async ({ payment_method }) => {
 		setSubmitting(true);
 		setError(null);
 		try {
@@ -580,37 +645,43 @@ function App() {
 				lock_id: lock.lock_id,
 				session_id: getSessionId(),
 				adults: participants.adults,
-				children: participants.children,
-				customer_comment: participants.customer_comment,
+				children_reduced: participants.children_reduced,
+				children_free: participants.children_free,
+				event_type: eventData.event_type,
+				event_label: eventData.event_label,
+				addon_gift: eventData.addon_gift,
+				customer_comment: eventData.customer_comment,
+				discount_code: eventData.discount_code,
 				customer,
 				payment_method,
-				promocode,
-				voucher_code,
 			});
 			localStorage.removeItem(LS_ACTIVE_LOCK);
 			setBooking(r.data);
-			setStep(4);
+			setStep(5);
 		} catch (e) {
 			setError(e.message || 'Errore durante la conferma');
 		} finally {
 			setSubmitting(false);
 		}
-	}, [lock, participants, customer]);
+	}, [lock, participants, eventData, customer]);
 
-	if (lockExpired && step > 0 && step < 4) {
+	if (lockExpired && step > 0 && step < 5) {
 		return html`<${LockExpiredModal} onRestart=${reset} />`;
 	}
+
+	const players = participants ? (participants.adults + participants.children_reduced + participants.children_free) : 0;
 
 	return html`
 		<div class="em-booking-app">
 			${step > 0 && html`<${Stepper} current=${step} />`}
-			${lock && step > 0 && step < 4 && html`<${Countdown} expiresAt=${lock.expires_at} onExpire=${() => setLockExpired(true)} />`}
+			${lock && step > 0 && step < 5 && html`<${Countdown} expiresAt=${lock.expires_at} onExpire=${() => setLockExpired(true)} />`}
 
 			${step === 0 && html`<${Step1_Calendar} onPick=${pickSlot} />`}
 			${step === 1 && html`<${Step2_Participants} room=${selectedRoom} onNext=${p => { setParticipants(p); setStep(2); }} onBack=${backToCalendar} />`}
-			${step === 2 && html`<${Step3_Customer} requiredFields=${CONFIG.requiredFields} onNext=${c => { setCustomer(c.customer); setStep(3); }} onBack=${() => setStep(1)} />`}
-			${step === 3 && html`<${Step4_Summary} room=${selectedRoom} slot=${selectedSlot} participants=${participants} customer=${customer} onConfirm=${confirm} onBack=${() => setStep(2)} submitting=${submitting} error=${error} />`}
-			${step === 4 && booking && html`<${Step5_Result} booking=${booking} onReset=${reset} />`}
+			${step === 2 && html`<${Step_Event} players=${players} onNext=${e => { setEventData(e); setStep(3); }} onBack=${() => setStep(1)} />`}
+			${step === 3 && html`<${Step3_Customer} requiredFields=${CONFIG.requiredFields} onNext=${c => { setCustomer(c.customer); setStep(4); }} onBack=${() => setStep(2)} />`}
+			${step === 4 && html`<${Step4_Summary} room=${selectedRoom} slot=${selectedSlot} participants=${participants} event=${eventData} customer=${customer} onConfirm=${confirm} onBack=${() => setStep(3)} submitting=${submitting} error=${error} />`}
+			${step === 5 && booking && html`<${Step5_Result} booking=${booking} onReset=${reset} />`}
 		</div>`;
 }
 

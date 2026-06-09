@@ -38,6 +38,13 @@ final class Bookings_Controller extends Rest_Controller_Base {
 			'permission_callback' => $this->public_permission(),
 		) );
 
+		// Pubblico: preventivo live (fasce d'età + evento + add-on + codice)
+		register_rest_route( self::NAMESPACE, '/bookings/quote', array(
+			'methods'             => 'POST',
+			'callback'            => array( $this, 'quote' ),
+			'permission_callback' => $this->public_permission(),
+		) );
+
 		// CRM list/create
 		register_rest_route( self::NAMESPACE, '/bookings', array(
 			array(
@@ -120,6 +127,12 @@ final class Bookings_Controller extends Rest_Controller_Base {
 			return $this->wp_error_response( $result );
 		}
 		return em_json_data( $this->present( $result ), 201 );
+	}
+
+	/** Preventivo live (nessuna scrittura): fasce d'età + evento + add-on + codice. */
+	public function quote( \WP_REST_Request $req ): \WP_REST_Response {
+		$body = $this->body( $req );
+		return em_json_data( ( new \EscapeManager\Services\Pricing_Service() )->quote_event( $body ), 200 );
 	}
 
 	public function get_public( \WP_REST_Request $req ): \WP_REST_Response {

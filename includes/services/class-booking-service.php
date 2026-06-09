@@ -62,9 +62,12 @@ final class Booking_Service {
 			return new \WP_Error( 'CUSTOMER_REQUIRED', __( 'Nome e telefono obbligatori.', 'escape-manager' ), array( 'status' => 400 ) );
 		}
 
+		// Fasce d'età: adulti (13+), ragazzi ridotti (7-12), bambini omaggio (0-6).
+		// Retrocompat: se arriva solo `children`, lo trattiamo come ragazzi ridotti.
 		$adults   = max( 0, (int) ( $payload['adults'] ?? 0 ) );
-		$children = max( 0, (int) ( $payload['children'] ?? 0 ) );
-		$total    = $adults + $children;
+		$reduced  = max( 0, (int) ( $payload['children_reduced'] ?? $payload['children'] ?? 0 ) );
+		$free     = max( 0, (int) ( $payload['children_free'] ?? 0 ) );
+		$total    = $adults + $reduced + $free;
 
 		if ( $total < (int) $room['min_players'] || $total > (int) $room['max_players'] ) {
 			return new \WP_Error( 'PARTICIPANTS_OUT_OF_RANGE', sprintf(
@@ -77,12 +80,15 @@ final class Booking_Service {
 
 		$customer_id = $this->customers->find_or_create( $customer_data );
 
-		$pricing = $this->pricing->calculate_with_discounts(
-			(int) $room['id'],
-			$total,
-			$payload['promocode'] ?? null,
-			$payload['voucher_code'] ?? null
-		);
+		$event_type = (string) ( $payload['event_type'] ?? 'standard' );
+		$pricing = $this->pricing->quote_event( array(
+			'adults'           => $adults,
+			'children_reduced' => $reduced,
+			'children_free'    => $free,
+			'event_type'       => $event_type,
+			'addon_gift'       => ! empty( $payload['addon_gift'] ),
+			'code'             => $payload['discount_code'] ?? $payload['promocode'] ?? $payload['voucher_code'] ?? null,
+		) );
 		$total_amount = $pricing['total_cents'];
 		$method       = (string) ( $payload['payment_method'] ?? 'on_site' );
 		$booking_status = $method === 'online'
@@ -97,9 +103,14 @@ final class Booking_Service {
 			'start_datetime'  => $lock['start_datetime'],
 			'end_datetime'    => $lock['end_datetime'],
 			'adults'          => $adults,
-			'children'        => $children,
+			'children'        => $reduced + $free,
+			'children_reduced' => $reduced,
+			'children_free'   => $free,
 			'total_players'   => $total,
 			'total_amount'    => $total_amount,
+			'addons_amount'   => $pricing['addons_cents'],
+			'event_type'      => $event_type,
+			'event_label'     => isset( $payload['event_label'] ) ? sanitize_text_field( (string) $payload['event_label'] ) : null,
 			'paid_amount'     => 0,
 			'payment_method'  => $method,
 			'payment_status'  => Booking::PAYMENT_UNPAID,
