@@ -297,7 +297,9 @@ function Countdown({ expiresAt, onExpire }) {
 	}, [expiresAt]);
 	const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
 	const ss = String(remaining % 60).padStart(2, '0');
-	return html`<div class="em-countdown">⏱ ${mm}:${ss} per completare</div>`;
+	// Una sola espressione dinamica: evita il bug htm/Preact di accumulo nodi testo.
+	const label = '⏱ ' + mm + ':' + ss + ' per completare';
+	return html`<div class="em-countdown">${label}</div>`;
 }
 
 function Counter({ label, hint, value, set, min }) {

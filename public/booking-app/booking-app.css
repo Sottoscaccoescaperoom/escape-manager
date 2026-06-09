@@ -20,6 +20,8 @@
 	padding: 1.25rem;
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 	color: var(--em-text);
+	background: var(--em-bg);
+	border-radius: 18px;
 }
 
 .em-booking-app * { box-sizing: border-box; }
@@ -269,7 +271,7 @@
 }
 
 /* ===== Step content (forms) ===== */
-.em-step2, .em-step3, .em-step4, .em-step5 {
+.em-step2, .em-step3, .em-step4, .em-step5, .em-step-event {
 	background: var(--em-panel);
 	border: 1px solid var(--em-border);
 	border-radius: 16px;
