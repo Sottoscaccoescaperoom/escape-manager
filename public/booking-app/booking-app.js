@@ -7,7 +7,7 @@
  */
 
 import { h, render } from 'https://esm.sh/preact@10.22.0';
-import { useState, useEffect, useMemo, useCallback } from 'https://esm.sh/preact@10.22.0/hooks';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'https://esm.sh/preact@10.22.0/hooks';
 import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(h);
@@ -282,24 +282,26 @@ function Stepper({ current }) {
 }
 
 function Countdown({ expiresAt, onExpire }) {
-	const [remaining, setRemaining] = useState(0);
+	// Aggiornamento imperativo via ref: il componente si disegna UNA volta e
+	// il testo cambia direttamente nel DOM. Niente re-render → niente accumulo
+	// di nodi (bug htm/Preact con figli testo che si ripetevano a ogni tick).
+	const ref = useRef(null);
 	useEffect(() => {
-		// expires_at arriva dal server in UTC ('YYYY-MM-DD HH:MM:SS') → forziamo l'interpretazione UTC.
+		// expires_at arriva dal server in UTC ('YYYY-MM-DD HH:MM:SS') → interpretazione UTC.
 		const target = new Date(String(expiresAt).replace(' ', 'T') + 'Z').getTime();
 		const tick = () => {
 			const diff = target - Date.now();
-			setRemaining(Math.max(0, Math.floor(diff / 1000)));
+			const rem = Math.max(0, Math.floor(diff / 1000));
+			const mm = String(Math.floor(rem / 60)).padStart(2, '0');
+			const ss = String(rem % 60).padStart(2, '0');
+			if (ref.current) ref.current.textContent = '⏱ ' + mm + ':' + ss + ' per completare';
 			if (diff <= 0) onExpire();
 		};
 		tick();
 		const id = setInterval(tick, 1000);
 		return () => clearInterval(id);
 	}, [expiresAt]);
-	const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
-	const ss = String(remaining % 60).padStart(2, '0');
-	// Una sola espressione dinamica: evita il bug htm/Preact di accumulo nodi testo.
-	const label = '⏱ ' + mm + ':' + ss + ' per completare';
-	return html`<div class="em-countdown">${label}</div>`;
+	return html`<div class="em-countdown" ref=${ref}></div>`;
 }
 
 function Counter({ label, hint, value, set, min }) {
@@ -417,7 +419,7 @@ function Step_Event({ players, onNext, onBack }) {
 }
 
 function Step3_Customer({ requiredFields, onNext, onBack }) {
-	const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', email: '', birthday: '', address: '' });
+	const [form, setForm] = useState({ first_name: '', last_name: '', phone: '+39 ', email: '', birthday: '', address: '' });
 	const set = (k, v) => setForm({ ...form, [k]: v });
 
 	const req = requiredFields || {};
