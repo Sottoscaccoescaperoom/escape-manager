@@ -10,6 +10,22 @@ final class Public_App {
 	public function register(): void {
 		add_shortcode( 'escape_booking', array( $this, 'render_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		// Il bundle usa import ESM (Preact/htm da CDN): va servito come modulo.
+		add_filter( 'script_loader_tag', array( $this, 'module_script_tag' ), 10, 3 );
+	}
+
+	/**
+	 * Forza type="module" sul bundle booking (necessario per gli import ESM).
+	 */
+	public function module_script_tag( string $tag, string $handle, string $src ): string {
+		if ( 'em-booking-app' !== $handle ) {
+			return $tag;
+		}
+		return sprintf(
+			'<script type="module" src="%s" id="%s-js"></script>' . "\n",
+			esc_url( $src ),
+			esc_attr( $handle )
+		);
 	}
 
 	public function enqueue_assets(): void {
