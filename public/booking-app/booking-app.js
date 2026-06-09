@@ -149,7 +149,7 @@ function Step1_Calendar({ onPick }) {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
 
-	const STRIP = 9;
+	const STRIP = 7;
 
 	useEffect(() => {
 		setLoading(true); setError(null);
