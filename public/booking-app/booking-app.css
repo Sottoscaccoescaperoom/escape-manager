@@ -209,29 +209,40 @@
 }
 .emc-slot-lock { font-size: 0.95em; opacity: 0.5; }
 
-/* vista settimana */
-.emc-week .emc-week-grid {
-	display: grid;
-	grid-template-columns: repeat(7, minmax(0, 1fr));
-	gap: 0.5em;
+/* ===== Vista settimana (stile Escape Navigator) ===== */
+.emc-weekview { display: grid; grid-template-columns: 230px 1fr; gap: 1.3em; align-items: start; }
+@media (max-width: 760px) { .emc-weekview { grid-template-columns: 1fr; } }
+
+.emc-side {
+	background: var(--em-panel-2); border: 1px solid var(--em-border);
+	border-radius: 14px; padding: 0.8em;
 }
-.emc-week-col {
-	background: var(--em-panel-2);
-	border: 1px solid var(--em-border);
-	border-radius: 12px;
-	padding: 0.5em 0.4em;
-	min-height: 90px;
+.emc-side-loc {
+	color: var(--em-muted); font-size: 0.82em; line-height: 1.55;
+	padding: 0.3em 0.5em 0.8em; border-bottom: 1px solid var(--em-border); margin-bottom: 0.6em;
 }
-.emc-week-colhead {
-	display: flex; flex-direction: column; align-items: center;
-	gap: 1px; margin-bottom: 0.5em;
-	color: var(--em-muted);
+.emc-side-rooms { display: flex; flex-direction: column; gap: 0.15em; }
+.emc-side-room {
+	display: flex; align-items: center; gap: 0.6em;
+	padding: 0.5em; border: 0; background: transparent; color: var(--em-text);
+	border-radius: 10px; cursor: pointer; text-align: left; font-size: 0.92em; font-weight: 600;
+	transition: background .15s;
 }
-.emc-week-colhead .emc-day-wd { font-size: 0.7em; }
-.emc-week-colnum { font-size: 0.95em; font-weight: 700; color: var(--em-text); }
-.emc-week-colslots { display: flex; flex-direction: column; gap: 0.4em; align-items: stretch; }
-.emc-week-colslots .emc-slot { min-width: 0; width: 100%; padding: 0.4em; }
-.emc-week-empty { text-align: center; color: var(--em-faint); }
+.emc-side-room:hover { background: var(--em-chip); }
+.emc-side-room.is-active { background: var(--em-accent); color: #fff; }
+.emc-side-room .emc-avatar { width: 34px; height: 34px; font-size: 0.85em; }
+
+.emc-main .emc-room-head { margin-bottom: 1.1em; }
+.emc-week-days { display: flex; flex-direction: column; gap: 0; }
+.emc-week-day {
+	display: grid; grid-template-columns: 95px 1fr; gap: 0.9em; align-items: start;
+	padding: 0.9em 0; border-bottom: 1px solid var(--em-border);
+}
+.emc-week-day:last-child { border-bottom: 0; }
+.emc-week-daylabel { display: flex; flex-direction: column; }
+.emc-wd-num { font-weight: 700; color: var(--em-text); font-size: 0.95em; }
+.emc-wd-wd { color: var(--em-muted); font-size: 0.8em; text-transform: lowercase; }
+.emc-week-dayslots { display: flex; flex-wrap: wrap; gap: 0.5em; }
 
 /* legenda */
 .emc-legend {

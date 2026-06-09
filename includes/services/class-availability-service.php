@@ -22,8 +22,18 @@ final class Availability_Service {
 		private Room_Time_Slot_Repository $time_slots = new Room_Time_Slot_Repository(),
 		private Booking_Repository $bookings = new Booking_Repository(),
 		private Lock_Repository $locks = new Lock_Repository(),
-		private Pricing_Service $pricing = new Pricing_Service()
+		private Pricing_Service $pricing = new Pricing_Service(),
+		private \EscapeManager\Repositories\Location_Repository $locations = new \EscapeManager\Repositories\Location_Repository()
 	) {}
+
+	/** Cache location per id (evita query ripetute nel loop stanze). */
+	private array $location_cache = array();
+	private function location_for( int $id ): array {
+		if ( ! isset( $this->location_cache[ $id ] ) ) {
+			$this->location_cache[ $id ] = $this->locations->find( $id ) ?: array();
+		}
+		return $this->location_cache[ $id ];
+	}
 
 	/**
 	 * Disponibilità su un intervallo di giorni consecutivi (vista Settimana).
@@ -106,6 +116,7 @@ final class Availability_Service {
 				$slots[] = $slot_entry;
 			}
 
+			$loc = $this->location_for( (int) $room['location_id'] );
 			$result[] = array(
 				'room_id'          => $room_id_int,
 				'room_name'        => $room['name'],
@@ -116,6 +127,9 @@ final class Availability_Service {
 				'difficulty'       => isset( $room['difficulty'] ) && '' !== $room['difficulty'] ? (int) $room['difficulty'] : null,
 				'image_url'        => $room['image_url'],
 				'price_from_cents' => $this->pricing->calculate( $room_id_int, (int) $room['min_players'] ),
+				'location_name'    => $loc['name'] ?? null,
+				'location_address' => $loc['address'] ?? null,
+				'location_city'    => $loc['city'] ?? null,
 				'slots'            => $slots,
 			);
 		}

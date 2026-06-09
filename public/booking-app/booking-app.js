@@ -94,9 +94,12 @@ function monthShort(iso) {
 	return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { month: 'short' }).replace('.', '');
 }
 function dayMonthShort(iso) { return dayNum(iso) + ' ' + monthShort(iso); }
-function pickerLabel(iso) {
-	const m = monthShort(iso);
-	return dayNum(iso) + ' ' + m.charAt(0).toUpperCase() + m.slice(1);
+function weekdayLong(iso) { return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'long' }); }
+function monthCap(iso) { const m = monthShort(iso); return m.charAt(0).toUpperCase() + m.slice(1); }
+function pickerLabel(iso) { return dayNum(iso) + ' ' + monthCap(iso); }
+function rangeLabel(startIso) {
+	const end = isoAddDays(startIso, 6);
+	return dayNum(startIso) + ' ' + monthCap(startIso) + ' — ' + dayNum(end) + ' ' + monthCap(end);
 }
 function difficultyLabel(n) { return n && DIFFICULTY[n] ? DIFFICULTY[n] : null; }
 
@@ -144,45 +147,45 @@ function Step1_Calendar({ onPick }) {
 	const [view, setView] = useState('day');
 	const [selectedDate, setSelectedDate] = useState(isoToday());
 	const [stripStart, setStripStart] = useState(isoToday());
+	const [weekStart, setWeekStart] = useState(isoToday());
+	const [selectedRoomId, setSelectedRoomId] = useState(null);
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
 
 	const STRIP = 7;
+	const WEEKS = 8;
 
 	useEffect(() => {
 		setLoading(true); setError(null);
 		const qs = new URLSearchParams();
 		if (view === 'day') { qs.set('date', selectedDate); qs.set('days', '1'); }
-		else { qs.set('date', stripStart); qs.set('days', '7'); }
+		else { qs.set('date', weekStart); qs.set('days', '7'); }
 		if (CONFIG.locationId) qs.set('location_id', CONFIG.locationId);
 		api('GET', '/availability?' + qs.toString())
 			.then(r => setData(r.data || []))
 			.catch(e => setError(e.message))
 			.finally(() => setLoading(false));
-	}, [view, selectedDate, stripStart]);
+	}, [view, selectedDate, weekStart]);
 
 	const stripDays = useMemo(() => {
 		const arr = [];
 		for (let i = 0; i < STRIP; i++) arr.push(isoAddDays(stripStart, i));
 		return arr;
 	}, [stripStart]);
+	const weekPills = useMemo(() => {
+		const arr = [];
+		for (let i = 0; i < WEEKS; i++) arr.push(isoAddDays(weekStart, i * 7));
+		return arr;
+	}, [weekStart]);
 
-	const shift = (n) => {
-		const ns = isoAddDays(stripStart, n);
-		setStripStart(ns);
-		if (view === 'day') setSelectedDate(ns);
-	};
-	const onPrev = () => shift(view === 'week' ? -7 : -STRIP);
-	const onNext = () => shift(view === 'week' ? 7 : STRIP);
-	const onPickDate = (iso) => {
-		if (!iso) return;
-		setSelectedDate(iso);
-		setStripStart(iso);
-	};
+	const onPickDate = (iso) => { if (!iso) return; setSelectedDate(iso); setStripStart(iso); };
+	const dayPrev = () => { const ns = isoAddDays(stripStart, -STRIP); setStripStart(ns); setSelectedDate(ns); };
+	const dayNext = () => { const ns = isoAddDays(stripStart, STRIP); setStripStart(ns); setSelectedDate(ns); };
 
 	const dayRooms = (view === 'day' && data && data[0]) ? data[0].rooms : [];
 	const weekRooms = (view === 'week' && data && data[0]) ? data[0].rooms : [];
+	const activeRoom = weekRooms.find(r => r.room_id === selectedRoomId) || weekRooms[0];
 
 	return html`
 		<div class="emc">
@@ -193,25 +196,37 @@ function Step1_Calendar({ onPick }) {
 				</div>
 				<label class="emc-datepick">
 					<span class="emc-cal-ico">📅</span>
-					<span class="emc-datepick-label">${pickerLabel(view === 'day' ? selectedDate : stripStart)}</span>
+					<span class="emc-datepick-label">${view === 'day' ? pickerLabel(selectedDate) : rangeLabel(weekStart)}</span>
 					<span class="emc-caret">▾</span>
-					<input type="date" value=${view === 'day' ? selectedDate : stripStart} onInput=${e => onPickDate(e.target.value)} />
+					<input type="date" value=${view === 'day' ? selectedDate : weekStart} onInput=${e => view === 'day' ? onPickDate(e.target.value) : setWeekStart(e.target.value)} />
 				</label>
 			</div>
 
-			<div class="emc-strip">
-				<button class="emc-arrow" onClick=${onPrev} aria-label="Precedente">‹</button>
-				<div class="emc-days">
-					${stripDays.map(iso => html`
-						<button key=${iso}
-							class=${'emc-day ' + (view === 'day' && iso === selectedDate ? 'is-active' : '')}
-							onClick=${() => onPickDate(iso)}>
-							<span class="emc-day-wd">${weekdayShort(iso)}</span>
-							<span class="emc-day-dm">${dayMonthShort(iso)}</span>
-						</button>`)}
-				</div>
-				<button class="emc-arrow" onClick=${onNext} aria-label="Successivo">›</button>
-			</div>
+			${view === 'day' && html`
+				<div class="emc-strip">
+					<button class="emc-arrow" onClick=${dayPrev} aria-label="Precedente">‹</button>
+					<div class="emc-days">
+						${stripDays.map(iso => html`
+							<button key=${iso} class=${'emc-day ' + (iso === selectedDate ? 'is-active' : '')} onClick=${() => onPickDate(iso)}>
+								<span class="emc-day-wd">${weekdayShort(iso)}</span>
+								<span class="emc-day-dm">${dayMonthShort(iso)}</span>
+							</button>`)}
+					</div>
+					<button class="emc-arrow" onClick=${dayNext} aria-label="Successivo">›</button>
+				</div>`}
+
+			${view === 'week' && html`
+				<div class="emc-strip">
+					<button class="emc-arrow" onClick=${() => setWeekStart(isoAddDays(weekStart, -7))} aria-label="Precedente">‹</button>
+					<div class="emc-days">
+						${weekPills.map(ws => html`
+							<button key=${ws} class=${'emc-day ' + (ws === weekStart ? 'is-active' : '')} onClick=${() => setWeekStart(ws)}>
+								<span class="emc-day-wd">${monthShort(ws)}</span>
+								<span class="emc-day-dm">${dayNum(ws)} — ${dayNum(isoAddDays(ws, 6))}</span>
+							</button>`)}
+					</div>
+					<button class="emc-arrow" onClick=${() => setWeekStart(isoAddDays(weekStart, 7))} aria-label="Successivo">›</button>
+				</div>`}
 
 			${loading && html`<div class="emc-loading">Caricamento orari…</div>`}
 			${error && html`<div class="emc-error">${error}</div>`}
@@ -230,32 +245,46 @@ function Step1_Calendar({ onPick }) {
 						</div>`)}
 				</div>`}
 
-			${!loading && !error && view === 'week' && html`
-				<div class="emc-body emc-week">
-					${weekRooms.length === 0 && html`<div class="emc-empty">Nessuna stanza disponibile.</div>`}
-					${weekRooms.map(r0 => html`
-						<div class="emc-room" key=${r0.room_id}>
-							<${RoomHead} room=${r0} />
-							<div class="emc-week-grid">
+			${!loading && !error && view === 'week' && (weekRooms.length === 0
+				? html`<div class="emc-empty">Nessuna stanza disponibile.</div>`
+				: html`
+				<div class="emc-weekview">
+					<aside class="emc-side">
+						${activeRoom && (activeRoom.location_address || activeRoom.location_name) && html`
+							<div class="emc-side-loc">
+								${activeRoom.location_address ? html`<div>${activeRoom.location_address}</div>` : ''}
+								${activeRoom.location_city ? html`<div>${activeRoom.location_city}</div>` : ''}
+							</div>`}
+						<div class="emc-side-rooms">
+							${weekRooms.map(r => html`
+								<button key=${r.room_id} class=${'emc-side-room ' + (activeRoom && r.room_id === activeRoom.room_id ? 'is-active' : '')} onClick=${() => setSelectedRoomId(r.room_id)}>
+									<${Avatar} name=${r.room_name} img=${r.image_url} />
+									<span>${r.room_name}</span>
+								</button>`)}
+						</div>
+					</aside>
+					<div class="emc-main">
+						${activeRoom && html`
+							<${RoomHead} room=${activeRoom} />
+							<div class="emc-week-days">
 								${data.map(day => {
-									const r = day.rooms.find(x => x.room_id === r0.room_id) || { slots: [] };
-									const avail = r.slots.filter(s => s.status === 'available');
+									const r = day.rooms.find(x => x.room_id === activeRoom.room_id) || { slots: [] };
 									return html`
-										<div class="emc-week-col" key=${day.date}>
-											<div class="emc-week-colhead">
-												<span class="emc-day-wd">${weekdayShort(day.date)}</span>
-												<span class="emc-week-colnum">${dayNum(day.date)}</span>
+										<div class="emc-week-day" key=${day.date}>
+											<div class="emc-week-daylabel">
+												<span class="emc-wd-num">${dayMonthShort(day.date)}</span>
+												<span class="emc-wd-wd">${weekdayLong(day.date)}</span>
 											</div>
-											<div class="emc-week-colslots">
-												${avail.length === 0
-													? html`<span class="emc-week-empty">—</span>`
-													: avail.map(slot => SlotChip({ room: r0, slot, dayDate: day.date, onPick }))}
+											<div class="emc-week-dayslots">
+												${r.slots.length === 0
+													? html`<span class="emc-slot-empty">—</span>`
+													: r.slots.map(slot => SlotChip({ room: r, slot, dayDate: day.date, onPick }))}
 											</div>
 										</div>`;
 								})}
-							</div>
-						</div>`)}
-				</div>`}
+							</div>`}
+					</div>
+				</div>`)}
 
 			<div class="emc-legend">
 				<span class="emc-legend-item"><span class="emc-dot-c emc-dot-available"></span> Disponibile</span>
