@@ -1,0 +1,90 @@
+# Checklist Go-Live — sostituzione di Escape Navigator su sottoscacco.it
+
+> Obiettivo: mettere in produzione Escape Manager (EM) come sistema di prenotazione
+> del sito **sottoscacco.it**, al posto di Escape Navigator (EN), senza interruzioni.
+>
+> Regola d'oro: **EN resta attivo finché EM non ha superato il test silenzioso.**
+> Gestione prenotazioni lato admin = **CRM di EM** (WP admin → Escape Manager).
+
+---
+
+## FASE A — Preparazione (in locale, prima di toccare la produzione)
+
+- [ ] A1. Flusso pubblico nuovo testato end-to-end (calendario → partecipanti → evento → dati → riepilogo/totale → conferma)
+- [ ] A2. CRM testato (Fase 4 del TEST_PLAN): calendario, lista prenotazioni, drawer, conferma/annulla, +pagamento, +nota, sposta orario, creazione manuale
+- [ ] A3. Email di conferma/cancellazione verificate (Mailpit in locale)
+- [ ] A4. Prezzi evento verificati (adulti 30/25/22, ragazzi 15, bimbi gratis, celebrazione −22 da 6 giocatori, regalo +5)
+- [ ] A5. Backup del codice EM su git (già fatto: repo Sottoscaccoescaperoom/sottoscacco… → cartella escape-manager)
+
+## FASE B — Installazione su produzione (WP di sottoscacco.it, Hostinger)
+
+- [ ] B1. Accesso WP admin di sottoscacco.it + backup completo del sito (UpdraftPlus o backup hosting) **verificato**
+- [ ] B2. PHP 8.1+ attivo (Site Health) e cron WP funzionante
+- [ ] B3. Installare il plugin **Escape Manager** (zip o deploy git) e attivarlo
+- [ ] B4. **Diagnostica** verde: DB Schema = 3, 6 ruoli, 114 permessi, capability admin 19/19
+- [ ] B5. `GET /wp-json/escape-manager/v1/rooms` risponde (anche `{"data":[...]}`)
+
+## FASE C — Configurazione dati reali
+
+- [ ] C1. Creare la **Location** (indirizzo reale che apparirà nel widget settimana)
+- [ ] C2. Creare le **Stanze** reali — ⚠️ lo **slug di ogni stanza DEVE coincidere con lo slug della stessa stanza su Firestore/Sottoscacco** (vedi tabella sotto)
+- [ ] C3. Inserire gli **orari** (time-slots) di ogni stanza per ogni giorno della settimana
+- [ ] C4. Verificare/regolare i **prezzi** in Impostazioni (fasce adulti/ragazzi/bimbi, soglia e sconto celebrazione, add-on regalo)
+- [ ] C5. Impostare **email mittente** (nome + indirizzo) in Impostazioni
+- [ ] C6. (Opzionale) Creare promocodes/voucher reali
+
+### Tabella allineamento slug stanze (CRITICO)
+| Stanza | Slug EM | Slug Firestore Sottoscacco | OK? |
+|---|---|---|---|
+| | | | ☐ |
+| | | | ☐ |
+| | | | ☐ |
+| | | | ☐ |
+
+> Se anche UN solo slug non combacia → il bridge crea prenotazioni "orfane" in Sottoscacco (senza stanza). **Compilare e verificare prima dello switch.**
+
+## FASE D — Bridge verso Sottoscacco (test silenzioso, NON live)
+
+- [ ] D1. CRM → **Bridge Sottoscacco**: URL webhook = `https://app.sottoscacco.it/api/webhooks/escape-navigator`
+- [ ] D2. Secret = stesso valore di `ESCAPE_NAVIGATOR_WEBHOOK_SECRET` su Sottoscacco
+- [ ] D3. Prefisso external_id = `em-staging-` (per non collidere con le prenotazioni EN reali)
+- [ ] D4. **Test connessione** → risposta 2xx
+- [ ] D5. Checkbox "Stato bridge" = **OFF** (ancora non attivo)
+- [ ] D6. Creare 2-3 prenotazioni di test/giorno via EM → forzare il dispatch → verificare che arrivino in Sottoscacco con `roomId` valorizzato e che il **check-in funzioni**
+- [ ] D7. Ripetere per **almeno 7 giorni** con EN ancora sorgente reale → criterio: 0 webhook falliti, 100% match stanze
+
+## FASE E — Switchover (Giorno X)
+
+- [ ] E1. Cambiare prefisso bridge da `em-staging-` a `em-` (produzione)
+- [ ] E2. Sul sito: **rimuovere il widget Escape Navigator** dalla pagina di prenotazione
+- [ ] E3. Inserire lo shortcode **`[escape_booking]`** nella stessa pagina
+- [ ] E4. Verificare che il widget EM si carichi correttamente (front-end)
+- [ ] E5. CRM → Bridge → **"Stato bridge" = ON**, salva
+- [ ] E6. Eseguire **1 prenotazione reale di prova** end-to-end e verificarne l'arrivo in Sottoscacco + check-in
+- [ ] E7. Su EN: **bloccare la creazione di nuove prenotazioni**
+- [ ] E8. Monitorare la coda webhook le prime 2-3 ore (0 falliti)
+
+## FASE F — Post-switch (Giorno X → X+7)
+
+- [ ] F1. Monitor coda webhook 0 falliti (ogni 4h il primo giorno, poi 1/giorno)
+- [ ] F2. Spot-check email di conferma effettivamente recapitate
+- [ ] F3. Feedback operatori in sala (anomalie?)
+- [ ] F4. Verifica che Sottoscacco continui a funzionare normalmente
+- [ ] Criterio "switch riuscito": 7 giorni senza incidenti, ≥20 prenotazioni processate end-to-end
+
+## FASE G — Dismissione Escape Navigator (X+1 → X+2 mesi)
+
+- [ ] G1. Export finale dati EN (prenotazioni storiche, clienti)
+- [ ] G2. (Opzionale) Import storico in EM per le statistiche
+- [ ] G3. Disdetta abbonamento EN
+- [ ] G4. Rimozione script/asset EN residui dal sito
+
+---
+
+## Piano di ROLLBACK (se qualcosa va storto, < 15 min)
+1. Sito: rimetti il widget EN al posto di `[escape_booking]`.
+2. CRM → Bridge → "Stato bridge" = OFF.
+3. EN: riattiva la creazione prenotazioni.
+4. Eventuali prenotazioni nate in EM nel frattempo → export manuale + reinserimento in EN.
+
+*Riferimento completo: `TEST_PLAN.md` (Fasi 11-14).*

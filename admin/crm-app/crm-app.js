@@ -84,15 +84,16 @@ function Sidebar({ current, onNavigate, perms }) {
 
 	return html`
 		<aside class="em-sidebar">
-			<div class="em-logo">Escape Manager</div>
+			<div class="em-logo"><span class="em-logo-mark">E</span><span>Escape Manager</span></div>
 			<nav>
 				${items.map(item => html`
 					<button class=${'em-nav-item ' + (current === item.id ? 'is-active' : '')}
 						onClick=${() => onNavigate(item.id)}>
-						<span>${item.icon}</span> ${item.label}
+						<span>${item.icon}</span><span>${item.label}</span>
 					</button>
 				`)}
 			</nav>
+			<div class="em-sidebar-foot">Supporto tecnico</div>
 		</aside>
 	`;
 }
@@ -1122,7 +1123,18 @@ function App() {
 		<div class="em-crm">
 			<${Sidebar} current=${page} onNavigate=${setPage} perms=${perms} />
 			<main class="em-main">
-				<div class="em-topbar">Ciao, <strong>${me.display_name}</strong> (${(me.roles || []).join(', ')})</div>
+				<div class="em-topbar">
+					<div class="em-search">
+						<span>🔍</span>
+						<input type="search" placeholder="Cerca prenotazioni, clienti…" disabled />
+					</div>
+					<div class="em-topbar-spacer"></div>
+					<button class="em-iconbtn" title="Notifiche">🔔</button>
+					<div class="em-profile">
+						<div class="em-avatar-circle">${(me.display_name || '?').charAt(0).toUpperCase()}</div>
+						<div class="em-profile-name"><strong>${me.display_name}</strong><small>${(me.roles || []).join(', ')}</small></div>
+					</div>
+				</div>
 				${content}
 			</main>
 			${openBookingId && html`<${BookingDrawer} bookingId=${openBookingId} onClose=${() => setOpenBookingId(null)} onChanged=${() => {}} />`}
