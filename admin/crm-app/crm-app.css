@@ -281,3 +281,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c
 	.em-sidebar-foot { display: none; }
 	.em-bar-row { grid-template-columns: 80px 1fr 100px; }
 }
+
+/* Editor orari settimanali (modal stanza) */
+.em-slot-adder { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.8rem; }
+.em-slot-adder select, .em-slot-adder input[type="time"] { padding: 0.45rem 0.6rem; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-panel-2); color: var(--c-text); }
+.em-slot-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.em-slot-day { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.88rem; }
+.em-slot-day strong { min-width: 92px; color: var(--c-muted); font-weight: 600; }
+.em-slot-chip { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--c-chip); border: 1px solid var(--c-border); border-radius: 8px; padding: 0.25rem 0.5rem; font-weight: 700; }
+.em-slot-chip button { background: transparent; border: 0; color: var(--c-muted); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0 0 0.1rem; }
+.em-slot-chip button:hover { color: var(--c-danger); }

@@ -867,14 +867,60 @@ function RoomsPage() {
 					`)}
 				</tbody>
 			</table>
-			${editing && html`<${RoomEditModal} room=${editing} locations=${locations} onClose=${() => setEditing(null)} onSave=${save} />`}
+			${editing && html`<${RoomEditModal} room=${editing} locations=${locations} onClose=${() => setEditing(null)} onSaved=${() => { setEditing(null); load(); }} />`}
 		</div>
 	`;
 }
 
-function RoomEditModal({ room, locations, onClose, onSave }) {
+const WEEKDAYS = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+function addMinutesToTime(t, min) {
+	const [h, m] = (t || '00:00').split(':').map(Number);
+	const total = ((h * 60 + m + (min || 0)) % 1440 + 1440) % 1440;
+	return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0') + ':00';
+}
+
+function RoomEditModal({ room, locations, onClose, onSaved }) {
 	const [form, setForm] = useState(room);
+	const [slots, setSlots] = useState([]);
+	const [newDay, setNewDay] = useState(1);
+	const [newTime, setNewTime] = useState('15:00');
+	const [saving, setSaving] = useState(false);
+	const [err, setErr] = useState(null);
 	const set = (k, v) => setForm({ ...form, [k]: v });
+
+	useEffect(() => {
+		if (room.id) api('GET', `/rooms/${room.id}/time-slots`)
+			.then(r => setSlots((r.data || []).map(s => ({ day_of_week: Number(s.day_of_week), start_time: (s.start_time || '').slice(0, 5) }))))
+			.catch(() => {});
+	}, [room.id]);
+
+	const sortSlots = arr => [...arr].sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time));
+	const addSlot = () => {
+		if (!newTime || slots.some(s => s.day_of_week === newDay && s.start_time === newTime)) return;
+		setSlots(sortSlots([...slots, { day_of_week: newDay, start_time: newTime }]));
+	};
+	const applyAllDays = () => {
+		if (!newTime) return;
+		const next = [...slots];
+		for (let d = 0; d < 7; d++) if (!next.some(s => s.day_of_week === d && s.start_time === newTime)) next.push({ day_of_week: d, start_time: newTime });
+		setSlots(sortSlots(next));
+	};
+	const removeSlot = (i) => setSlots(slots.filter((_, idx) => idx !== i));
+
+	const saveAll = async () => {
+		setSaving(true); setErr(null);
+		try {
+			let id = form.id;
+			if (id) await api('PUT', `/rooms/${id}`, form);
+			else { const r = await api('POST', '/rooms', form); id = r.data.id; }
+			const dur = parseInt(form.duration_minutes) || 60;
+			const payload = slots.map(s => ({ day_of_week: s.day_of_week, start_time: s.start_time + ':00', end_time: addMinutesToTime(s.start_time, dur) }));
+			await api('POST', `/rooms/${id}/time-slots`, { slots: payload });
+			onSaved();
+		} catch (e) { setErr(e.message || 'Errore nel salvataggio'); }
+		finally { setSaving(false); }
+	};
+
 	return html`
 		<div class="em-modal-backdrop" onClick=${onClose}>
 			<div class="em-modal em-modal-lg" onClick=${e => e.stopPropagation()}>
@@ -899,9 +945,29 @@ function RoomEditModal({ room, locations, onClose, onSave }) {
 				</div>
 				<label class="em-textarea-label">Descrizione <textarea rows="3" value=${form.description || ''} onInput=${e => set('description', e.target.value)}></textarea></label>
 				<label class="em-textarea-label">Info importanti <textarea rows="2" value=${form.important_info || ''} onInput=${e => set('important_info', e.target.value)}></textarea></label>
+
+				<h3>Orari settimanali</h3>
+				<p class="em-info">Imposta gli orari di inizio per ogni giorno; la fine si calcola dalla durata (${form.duration_minutes || 60} min).</p>
+				<div class="em-slot-adder">
+					<select value=${newDay} onChange=${e => setNewDay(parseInt(e.target.value))}>
+						${WEEKDAYS.map((d, i) => html`<option value=${i}>${d}</option>`)}
+					</select>
+					<input type="time" value=${newTime} onInput=${e => setNewTime(e.target.value)} />
+					<button class="em-btn em-btn-secondary" onClick=${addSlot}>+ Aggiungi</button>
+					<button class="em-btn em-btn-secondary" onClick=${applyAllDays}>Tutti i giorni</button>
+				</div>
+				<div class="em-slot-list">
+					${slots.length === 0 ? html`<p class="em-empty">Nessun orario impostato.</p>` : WEEKDAYS.map((dname, d) => {
+						const daySlots = slots.map((s, i) => ({ s, i })).filter(x => x.s.day_of_week === d);
+						if (daySlots.length === 0) return '';
+						return html`<div class="em-slot-day" key=${d}><strong>${dname}</strong> ${daySlots.map(({ s, i }) => html`<span class="em-slot-chip" key=${i}>${s.start_time}<button onClick=${() => removeSlot(i)}>×</button></span>`)}</div>`;
+					})}
+				</div>
+
+				${err && html`<p class="em-error">${err}</p>`}
 				<div class="em-actions">
-					<button class="em-btn em-btn-secondary" onClick=${onClose}>Annulla</button>
-					<button class="em-btn em-btn-primary" onClick=${() => onSave(form)}>Salva</button>
+					<button class="em-btn em-btn-secondary" onClick=${onClose} disabled=${saving}>Annulla</button>
+					<button class="em-btn em-btn-primary" onClick=${saveAll} disabled=${saving}>${saving ? 'Salvataggio…' : 'Salva'}</button>
 				</div>
 			</div>
 		</div>
