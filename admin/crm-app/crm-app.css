@@ -147,7 +147,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c
 .em-view-toggle button.is-active { background: #fff; color: #11111a; }
 
 /* ===== Calendar ===== */
-.em-calendar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; }
+/* Tutte le stanze su UNA riga (scroll orizzontale se non entrano), mai a capo. */
+.em-calendar-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); gap: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }
 .em-room-column { background: var(--c-panel); border: 1px solid var(--c-border); border-radius: 12px; overflow: hidden; }
 .em-room-header { background: var(--c-panel-2); padding: 0.75rem 1rem; font-weight: 700; border-bottom: 1px solid var(--c-border); }
 .em-room-body { padding: 0.5rem; min-height: 200px; }
