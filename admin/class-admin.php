@@ -19,6 +19,24 @@ final class Admin {
 
 	public const MENU_SLUG = 'escape-manager';
 
+	/** Mappa hook-admin → pagina del CRM (per iniettare initialPage). */
+	private array $crm_hooks = array();
+
+	/** Pagine del CRM esposte come sottomenu WP. slug => [label, page, cap]. */
+	private static function crm_pages(): array {
+		return array(
+			self::MENU_SLUG             => array( 'label' => __( 'Calendario', 'escape-manager' ),    'page' => 'calendar',    'cap' => 'em_view_calendar' ),
+			'escape-manager-bookings'   => array( 'label' => __( 'Prenotazioni', 'escape-manager' ),  'page' => 'bookings',    'cap' => 'em_view_bookings' ),
+			'escape-manager-customers'  => array( 'label' => __( 'Clienti', 'escape-manager' ),       'page' => 'customers',   'cap' => 'em_view_customers' ),
+			'escape-manager-statistics' => array( 'label' => __( 'Statistiche', 'escape-manager' ),   'page' => 'statistics',  'cap' => 'em_view_statistics' ),
+			'escape-manager-rooms'      => array( 'label' => __( 'Stanze', 'escape-manager' ),        'page' => 'rooms',       'cap' => 'em_view_rooms' ),
+			'escape-manager-tariffs'    => array( 'label' => __( 'Tariffe', 'escape-manager' ),       'page' => 'tariffs',     'cap' => 'em_view_settings' ),
+			'escape-manager-promocodes' => array( 'label' => __( 'Codici sconto', 'escape-manager' ), 'page' => 'promocodes',  'cap' => 'em_view_settings' ),
+			'escape-manager-vouchers'   => array( 'label' => __( 'Voucher', 'escape-manager' ),       'page' => 'vouchers',    'cap' => 'em_view_payments' ),
+			'escape-manager-settings'   => array( 'label' => __( 'Impostazioni', 'escape-manager' ),  'page' => 'settings',    'cap' => 'em_view_settings' ),
+		);
+	}
+
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_activation_notice' ) );
@@ -35,14 +53,20 @@ final class Admin {
 			3
 		);
 
-		add_submenu_page(
-			self::MENU_SLUG,
-			__( 'CRM', 'escape-manager' ),
-			__( 'CRM', 'escape-manager' ),
-			'em_view_dashboard',
-			self::MENU_SLUG,
-			array( $this, 'render_crm_page' )
-		);
+		// Una voce di sottomenu per ogni pagina del CRM (tendina come Marketing/Impostazioni).
+		foreach ( self::crm_pages() as $slug => $p ) {
+			$hook = add_submenu_page(
+				self::MENU_SLUG,
+				$p['label'],
+				$p['label'],
+				$p['cap'],
+				$slug,
+				array( $this, 'render_crm_page' )
+			);
+			if ( $hook ) {
+				$this->crm_hooks[ $hook ] = $p['page'];
+			}
+		}
 
 		add_submenu_page(
 			self::MENU_SLUG,
@@ -82,13 +106,11 @@ final class Admin {
 	}
 
 	public function enqueue_crm_assets( string $hook ): void {
-		if ( strpos( $hook, 'escape-manager' ) === false ) {
+		// Carichiamo il CRM solo sulle pagine CRM (non su Bridge/Diagnostica).
+		if ( ! isset( $this->crm_hooks[ $hook ] ) ) {
 			return;
 		}
-		// Carichiamo CRM solo nella pagina principale (non sulla diagnostica/bridge)
-		if ( $hook !== 'toplevel_page_' . self::MENU_SLUG ) {
-			return;
-		}
+		$initial_page = $this->crm_hooks[ $hook ];
 
 		wp_register_script(
 			'em-crm-app',
@@ -105,10 +127,12 @@ final class Admin {
 		);
 
 		wp_localize_script( 'em-crm-app', 'EM_CRM_CONFIG', array(
-			'apiBase'  => esc_url_raw( rest_url( EM_REST_NAMESPACE ) ),
-			'nonce'    => wp_create_nonce( 'wp_rest' ),
-			'timezone' => em_setting( 'em_timezone', 'Europe/Rome' ),
-			'currency' => em_setting( 'em_currency', 'EUR' ),
+			'apiBase'     => esc_url_raw( rest_url( EM_REST_NAMESPACE ) ),
+			'nonce'       => wp_create_nonce( 'wp_rest' ),
+			'timezone'    => em_setting( 'em_timezone', 'Europe/Rome' ),
+			'currency'    => em_setting( 'em_currency', 'EUR' ),
+			'initialPage' => $initial_page,
+			'wpMenu'      => true,
 		) );
 
 		wp_enqueue_script( 'em-crm-app' );

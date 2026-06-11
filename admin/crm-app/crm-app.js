@@ -1097,7 +1097,7 @@ function IdleTimer({ minutes, onTimeout }) {
 function App() {
 	const [me, setMe] = useState(null);
 	const [error, setError] = useState(null);
-	const [page, setPage] = useState('calendar');
+	const [page, setPage] = useState(CONFIG.initialPage || 'calendar');
 	const [openBookingId, setOpenBookingId] = useState(null);
 
 	useEffect(() => { api('GET', '/me').then(r => setMe(r.data)).catch(e => setError(e.message)); }, []);
@@ -1120,8 +1120,8 @@ function App() {
 	const idleMin = me.settings?.idle_timeout_minutes || 15;
 
 	return html`
-		<div class="em-crm">
-			<${Sidebar} current=${page} onNavigate=${setPage} perms=${perms} />
+		<div class=${'em-crm ' + (CONFIG.wpMenu ? 'em-crm-wpmenu' : '')}>
+			${!CONFIG.wpMenu && html`<${Sidebar} current=${page} onNavigate=${setPage} perms=${perms} />`}
 			<main class="em-main">
 				<div class="em-topbar">
 					<div class="em-search">
