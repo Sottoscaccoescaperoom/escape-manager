@@ -17,6 +17,10 @@ abstract class Rest_Controller_Base {
 
 	protected function require_capability( string $cap ): callable {
 		return static function () use ( $cap ): bool|\WP_Error {
+			// Accesso server-to-server (dashboard Sottoscacco) via API key.
+			if ( self::has_valid_api_key() ) {
+				return true;
+			}
 			if ( ! is_user_logged_in() ) {
 				return new \WP_Error( 'rest_forbidden', __( 'Devi essere autenticato.', 'escape-manager' ), array( 'status' => 401 ) );
 			}
@@ -25,6 +29,21 @@ abstract class Rest_Controller_Base {
 			}
 			return true;
 		};
+	}
+
+	/**
+	 * Chiave API per accesso macchina-a-macchina (es. proxy della dashboard
+	 * Sottoscacco). Inviata nell'header `X-EM-Api-Key`; confrontata con il
+	 * setting `em_api_key`. Evita le Application Password WP (disabilitate /
+	 * header Authorization strippato dal proxy). Solo server-side.
+	 */
+	protected static function has_valid_api_key(): bool {
+		$expected = (string) em_setting( 'em_api_key', '' );
+		if ( '' === $expected ) {
+			return false;
+		}
+		$provided = isset( $_SERVER['HTTP_X_EM_API_KEY'] ) ? (string) wp_unslash( $_SERVER['HTTP_X_EM_API_KEY'] ) : '';
+		return '' !== $provided && hash_equals( $expected, $provided );
 	}
 
 	protected function public_permission(): callable {
