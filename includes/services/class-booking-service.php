@@ -204,6 +204,8 @@ final class Booking_Service {
 			'payment_status' => $payment_status,
 			'booking_status' => Booking::STATUS_CONFIRMED,
 			'source'         => 'manual',
+			'event_type'     => $payload['event_type'] ?? null,
+			'event_label'    => isset( $payload['event_label'] ) ? sanitize_text_field( (string) $payload['event_label'] ) : null,
 			'customer_comment' => $payload['customer_comment'] ?? null,
 			'internal_notes'   => $payload['internal_notes'] ?? null,
 			'created_by'       => get_current_user_id() ?: null,
