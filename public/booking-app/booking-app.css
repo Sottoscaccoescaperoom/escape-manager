@@ -476,11 +476,11 @@
 .em-num-label { display: flex; flex-direction: column; }
 .em-num-label .em-hint { color: var(--em-faint); font-size: 0.78em; margin-top: 1px; }
 .em-info-box {
-	margin-top: 1em; padding: 0.85em 1em;
+	margin-top: 1em; padding: 1em 1.2em;
 	background: var(--em-panel-2); border: 1px solid var(--em-border);
-	border-radius: 12px; font-size: 0.88em; color: var(--em-muted); line-height: 1.5;
+	border-radius: 12px; font-size: 1.05em; color: var(--em-text); line-height: 1.55;
 }
-.em-info-box strong { color: var(--em-text); }
+.em-info-box strong { color: #fff; }
 .em-info-box.em-info-ok {
 	background: rgba(52,211,153,0.10); border-color: rgba(52,211,153,0.4); color: #b9f3da;
 }
