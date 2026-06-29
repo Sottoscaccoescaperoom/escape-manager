@@ -444,7 +444,7 @@ function Step_Event({ players, onNext, onBack }) {
 			</label>
 
 			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)
-				<textarea rows="2" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, persone con disabilità che partecipano al gioco…"></textarea>
+				<textarea rows="4" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, persone con disabilità che partecipano al gioco…"></textarea>
 			</label>
 
 			<div class="em-actions">
