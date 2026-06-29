@@ -438,10 +438,13 @@ function Step_Event({ players, onNext, onBack }) {
 					<input value=${label} onInput=${e => setLabel(e.target.value)} placeholder=${fieldLabel} />
 				</label>`}
 
-			<label class="em-addon">
-				<input type="checkbox" checked=${gift} onChange=${e => setGift(e.target.checked)} />
-				<span>🎁 Nascondi un regalo nella stanza <strong>+€5</strong></span>
-			</label>
+			<div class="em-extras">
+				<h3 class="em-extras-title">Rendi l'esperienza ancora più speciale</h3>
+				<label class="em-addon">
+					<input type="checkbox" checked=${gift} onChange=${e => setGift(e.target.checked)} />
+					<span>🎁 Nascondi un regalo nella stanza <strong>+€5</strong></span>
+				</label>
+			</div>
 
 			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)
 				<textarea rows="4" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, persone con disabilità che partecipano al gioco…"></textarea>

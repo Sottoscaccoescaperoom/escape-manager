@@ -508,6 +508,20 @@
 }
 .em-addon input { width: auto; }
 
+/* sezione "extra esperienza" — area a sé con titolo */
+.em-extras {
+	margin-top: 1.4em;
+	padding: 1.1em 1.2em;
+	background: var(--em-panel-2);
+	border: 1px solid var(--em-border);
+	border-radius: 14px;
+}
+.em-extras-title {
+	margin: 0 0 0.7em !important;
+	font-size: 1.05em; font-weight: 800; color: var(--em-text);
+}
+.em-extras .em-addon { margin-top: 0; background: var(--em-chip); }
+
 /* ===== Box prezzo nel riepilogo ===== */
 .em-price-box {
 	margin: 1.2em 0; padding: 1em 1.1em;
