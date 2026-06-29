@@ -96,7 +96,19 @@ function monthShort(iso) {
 function dayMonthShort(iso) { return dayNum(iso) + ' ' + monthShort(iso); }
 function weekdayLong(iso) { return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'long' }); }
 function monthCap(iso) { const m = monthShort(iso); return m.charAt(0).toUpperCase() + m.slice(1); }
+function monthLong(iso) { return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { month: 'long' }); }
+function monthLongCap(iso) { const m = monthLong(iso); return m.charAt(0).toUpperCase() + m.slice(1); }
 function pickerLabel(iso) { return dayNum(iso) + ' ' + monthCap(iso); }
+/** Minuti dall'inizio giornata, con i turni notte (prima delle 05:00) spinti in fondo. */
+function slotMinutes(slot) {
+	const m = String(slot && slot.start || '').match(/T(\d{2}):(\d{2})/);
+	if (!m) return 0;
+	const hh = +m[1];
+	let mins = hh * 60 + (+m[2]);
+	if (hh < 5) mins += 24 * 60; // 00:30/01:00/02:00… → dopo il 23:30
+	return mins;
+}
+function sortSlots(slots) { return Array.isArray(slots) ? slots.slice().sort((a, b) => slotMinutes(a) - slotMinutes(b)) : []; }
 function rangeLabel(startIso) {
 	const end = isoAddDays(startIso, 6);
 	return dayNum(startIso) + ' ' + monthCap(startIso) + ' — ' + dayNum(end) + ' ' + monthCap(end);
@@ -190,15 +202,12 @@ function Step1_Calendar({ onPick }) {
 	return html`
 		<div class="emc">
 			<div class="emc-topbar">
-				<div class="emc-toggle">
-					<button class=${view === 'week' ? 'is-active' : ''} onClick=${() => setView('week')}>Settimana</button>
-					<button class=${view === 'day' ? 'is-active' : ''} onClick=${() => setView('day')}>Giorno</button>
-				</div>
+				<div class="emc-month">${monthLongCap(selectedDate)}</div>
 				<label class="emc-datepick">
 					<span class="emc-cal-ico">📅</span>
-					<span class="emc-datepick-label">${view === 'day' ? pickerLabel(selectedDate) : rangeLabel(weekStart)}</span>
+					<span class="emc-datepick-label">${pickerLabel(selectedDate)}</span>
 					<span class="emc-caret">▾</span>
-					<input type="date" value=${view === 'day' ? selectedDate : weekStart} onInput=${e => view === 'day' ? onPickDate(e.target.value) : setWeekStart(e.target.value)} />
+					<input type="date" value=${selectedDate} onInput=${e => onPickDate(e.target.value)} />
 				</label>
 			</div>
 
@@ -208,8 +217,8 @@ function Step1_Calendar({ onPick }) {
 					<div class="emc-days">
 						${stripDays.map(iso => html`
 							<button key=${iso} class=${'emc-day ' + (iso === selectedDate ? 'is-active' : '')} onClick=${() => onPickDate(iso)}>
-								<span class="emc-day-wd">${weekdayShort(iso)}</span>
-								<span class="emc-day-dm">${dayMonthShort(iso)}</span>
+								<span class="emc-day-wd">${weekdayLong(iso)}</span>
+								<span class="emc-day-dm">${dayNum(iso)}</span>
 							</button>`)}
 					</div>
 					<button class="emc-arrow" onClick=${dayNext} aria-label="Successivo">›</button>
@@ -240,7 +249,7 @@ function Step1_Calendar({ onPick }) {
 							<div class="emc-slots">
 								${room.slots.length === 0
 									? html`<span class="emc-slot-empty">Nessun orario</span>`
-									: room.slots.map(slot => SlotChip({ room, slot, dayDate: selectedDate, onPick }))}
+									: sortSlots(room.slots).map(slot => SlotChip({ room, slot, dayDate: selectedDate, onPick }))}
 							</div>
 						</div>`)}
 				</div>`}
@@ -278,7 +287,7 @@ function Step1_Calendar({ onPick }) {
 											<div class="emc-week-dayslots">
 												${r.slots.length === 0
 													? html`<span class="emc-slot-empty">—</span>`
-													: r.slots.map(slot => SlotChip({ room: r, slot, dayDate: day.date, onPick }))}
+													: sortSlots(r.slots).map(slot => SlotChip({ room: r, slot, dayDate: day.date, onPick }))}
 											</div>
 										</div>`;
 								})}
