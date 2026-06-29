@@ -87,9 +87,11 @@ final class Booking_Service {
 			'children_free'    => $free,
 			'event_type'       => $event_type,
 			'addon_gift'       => ! empty( $payload['addon_gift'] ),
+			'extras'           => isset( $payload['extras'] ) && is_array( $payload['extras'] ) ? $payload['extras'] : array(),
 			'code'             => $payload['discount_code'] ?? $payload['promocode'] ?? $payload['voucher_code'] ?? null,
 		) );
 		$total_amount = $pricing['total_cents'];
+		$extras_json  = ! empty( $pricing['extras'] ) ? wp_json_encode( $pricing['extras'] ) : null;
 		$method       = (string) ( $payload['payment_method'] ?? 'on_site' );
 		$booking_status = $method === 'online'
 			? Booking::STATUS_AWAITING_PAYMENT
@@ -108,7 +110,8 @@ final class Booking_Service {
 			'children_free'   => $free,
 			'total_players'   => $total,
 			'total_amount'    => $total_amount,
-			'addons_amount'   => $pricing['addons_cents'],
+			'addons_amount'   => (int) $pricing['addons_cents'] + (int) ( $pricing['extras_cents'] ?? 0 ),
+			'extras_json'     => $extras_json,
 			'event_type'      => $event_type,
 			'event_label'     => isset( $payload['event_label'] ) ? sanitize_text_field( (string) $payload['event_label'] ) : null,
 			'paid_amount'     => 0,

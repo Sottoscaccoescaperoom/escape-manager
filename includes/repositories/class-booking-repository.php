@@ -76,6 +76,7 @@ final class Booking_Repository extends Base_Repository {
 				'total_players'   => (int) ( $data['total_players'] ?? ( ( $data['adults'] ?? 0 ) + ( $data['children'] ?? 0 ) ) ),
 				'total_amount'    => (int) ( $data['total_amount'] ?? 0 ),
 				'addons_amount'   => (int) ( $data['addons_amount'] ?? 0 ),
+				'extras_json'     => $data['extras_json'] ?? null,
 				'event_type'      => $data['event_type'] ?? null,
 				'event_label'     => $data['event_label'] ?? null,
 				'paid_amount'     => (int) ( $data['paid_amount'] ?? 0 ),

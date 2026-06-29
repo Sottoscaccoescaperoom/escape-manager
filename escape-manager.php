@@ -20,8 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'EM_VERSION', '0.8.6' );
-define( 'EM_DB_VERSION', '3' );
+define( 'EM_VERSION', '0.8.8' );
+define( 'EM_DB_VERSION', '4' );
 define( 'EM_PLUGIN_FILE', __FILE__ );
 define( 'EM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

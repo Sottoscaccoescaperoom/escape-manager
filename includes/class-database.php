@@ -149,6 +149,7 @@ final class Database {
 				total_players TINYINT UNSIGNED NOT NULL DEFAULT 0,
 				total_amount BIGINT NOT NULL DEFAULT 0,
 				addons_amount BIGINT NOT NULL DEFAULT 0,
+				extras_json LONGTEXT NULL,
 				paid_amount BIGINT NOT NULL DEFAULT 0,
 				payment_method VARCHAR(40) NULL,
 				payment_status VARCHAR(30) NOT NULL DEFAULT 'unpaid',
@@ -400,6 +401,21 @@ final class Database {
 				PRIMARY KEY  (id),
 				KEY status_next (status, next_attempt_at),
 				KEY booking_id (booking_id)
+			) {$charset_collate};",
+
+			// 22) event_extras (em_db_version 4) — servizi extra "Rendi speciale il tuo evento"
+			"CREATE TABLE {$p}em_event_extras (
+				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+				title VARCHAR(191) NOT NULL,
+				description VARCHAR(255) NULL,
+				price_cents BIGINT NOT NULL DEFAULT 0,
+				event_types VARCHAR(255) NOT NULL DEFAULT 'all',
+				is_active TINYINT(1) NOT NULL DEFAULT 1,
+				sort_order INT NOT NULL DEFAULT 0,
+				created_at DATETIME NOT NULL,
+				updated_at DATETIME NULL,
+				PRIMARY KEY  (id),
+				KEY is_active (is_active)
 			) {$charset_collate};",
 		);
 	}

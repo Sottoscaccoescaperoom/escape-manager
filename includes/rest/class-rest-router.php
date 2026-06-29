@@ -28,6 +28,7 @@ final class Rest_Router {
 			new Vouchers_Controller(),
 			new Statistics_Controller(),
 			new Export_Controller(),
+			new Event_Extras_Controller(),
 		);
 		foreach ( $controllers as $c ) {
 			$c->register_routes();

@@ -59,8 +59,24 @@ final class Pricing_Service {
 		$celeb_eligible = $is_celebration && $players >= $threshold;
 		$event_discount = $celeb_eligible ? min( $subtotal, $celeb_discount ) : 0;
 
-		// Add-on (es. nascondere un regalo nella stanza).
+		// Add-on legacy (es. regalo) — mantenuto per compatibilità.
 		$addons = ! empty( $in['addon_gift'] ) ? (int) em_setting( 'em_addon_gift', 500 ) : 0;
+
+		// §extras — servizi extra "Rendi speciale il tuo evento". Prezzo AUTOREVOLE
+		// preso dal DB per id (mai dal client). Solo extra attivi.
+		$extras_total = 0;
+		$extras_out   = array();
+		$extra_ids    = isset( $in['extras'] ) && is_array( $in['extras'] ) ? $in['extras'] : array();
+		if ( ! empty( $extra_ids ) ) {
+			$rows = ( new \EscapeManager\Repositories\Event_Extra_Repository() )->find_many( $extra_ids );
+			foreach ( $rows as $r ) {
+				if ( empty( $r['is_active'] ) ) {
+					continue;
+				}
+				$extras_total += (int) $r['price_cents'];
+				$extras_out[]  = array( 'id' => (int) $r['id'], 'title' => $r['title'], 'price_cents' => (int) $r['price_cents'] );
+			}
+		}
 
 		// Promo/voucher applicati al costo giocatori al netto dello sconto evento.
 		// Campo unico "codice": si prova prima come promocode, poi come voucher.
@@ -78,7 +94,7 @@ final class Pricing_Service {
 			}
 		}
 
-		$total = max( 0, $promo_base - $code_discount ) + $addons;
+		$total = max( 0, $promo_base - $code_discount ) + $addons + $extras_total;
 
 		return array_merge( array(
 			'adults'              => $adults,
@@ -94,6 +110,8 @@ final class Pricing_Service {
 			'celebration_eligible'  => $celeb_eligible,
 			'event_discount_cents'  => $event_discount,
 			'addons_cents'        => $addons,
+			'extras_cents'        => $extras_total,
+			'extras'              => $extras_out,
 			'code_discount_cents' => $code_discount,
 			'total_cents'         => $total,
 		), $out );
