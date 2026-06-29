@@ -602,6 +602,30 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 		</div>`;
 }
 
+/** Countdown live fino al giorno/ora dell'esperienza (gg/ore/min/sec).
+ *  Aggiornamento imperativo via ref (niente re-render → niente duplicazioni). */
+function ExperienceCountdown({ target }) {
+	const ref = useRef(null);
+	useEffect(() => {
+		let t = new Date(target).getTime();
+		if (isNaN(t)) t = new Date(String(target).replace(' ', 'T')).getTime();
+		const cell = (n, l) => `<div class="em-xc-cell"><span class="em-xc-num">${n}</span><span class="em-xc-lbl">${l}</span></div>`;
+		const tick = () => {
+			let diff = t - Date.now();
+			if (diff < 0) diff = 0;
+			const d = Math.floor(diff / 86400000);
+			const h = Math.floor((diff % 86400000) / 3600000);
+			const m = Math.floor((diff % 3600000) / 60000);
+			const s = Math.floor((diff % 60000) / 1000);
+			if (ref.current) ref.current.innerHTML = cell(d, 'giorni') + cell(String(h).padStart(2, '0'), 'ore') + cell(String(m).padStart(2, '0'), 'min') + cell(String(s).padStart(2, '0'), 'sec');
+		};
+		tick();
+		const id = setInterval(tick, 1000);
+		return () => clearInterval(id);
+	}, [target]);
+	return html`<div class="em-xcount" ref=${ref}></div>`;
+}
+
 function Step5_Result({ booking, onReset }) {
 	return html`
 		<div class="em-step5">
@@ -621,7 +645,11 @@ function Step5_Result({ booking, onReset }) {
 				<div><strong>Quando:</strong> ${formatDate(booking.start_datetime)} alle ${formatTime(booking.start_datetime)}</div>
 				<div><strong>Codice:</strong> ${booking.booking_code}</div>
 			</div>
-			<p class="em-step5-thanks">Grazie per esserti affidato a <strong>Sottoscacco</strong>.<br/>Ci vediamo presto per la tua avventura!</p>
+			<p class="em-xc-title">Inizia il conto alla rovescia della tua esperienza indimenticabile</p>
+			<${ExperienceCountdown} target=${booking.start_datetime} />
+			<p class="em-xc-slogan">Preparatevi… vi aspetta un'avventura indimenticabile da <strong>Sottoscacco</strong>.</p>
+
+			<p class="em-step5-thanks">Grazie per esserti affidato a noi.<br/>Ci vediamo presto!</p>
 			<button class="em-btn em-btn-secondary" onClick=${onReset}>Nuova prenotazione</button>
 		</div>`;
 }

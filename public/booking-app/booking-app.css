@@ -443,6 +443,19 @@
 .em-step5-recap strong { color: var(--em-muted); font-weight: 600; margin-right: 0.35em; }
 .em-step5-thanks { color: var(--em-muted); line-height: 1.5; margin-bottom: 1.3em; }
 .em-step5-thanks strong { color: var(--em-accent); }
+
+/* countdown esperienza */
+.em-xc-title { font-size: 1.05em; color: var(--em-text); font-weight: 700; margin: 0.4em 0 0.8em; }
+.em-xcount { display: flex; justify-content: center; gap: 0.6em; margin: 0 auto 0.9em; flex-wrap: wrap; }
+.em-xc-cell {
+	display: flex; flex-direction: column; align-items: center; gap: 2px;
+	min-width: 72px; padding: 0.7em 0.4em;
+	background: var(--em-panel-2); border: 1px solid var(--em-border); border-radius: 12px;
+}
+.em-xc-num { font-size: 1.9em; font-weight: 900; color: var(--em-accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.em-xc-lbl { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--em-muted); }
+.em-xc-slogan { font-size: 1.05em; color: var(--em-text); margin: 0.2em auto 1.3em; max-width: 460px; line-height: 1.5; }
+.em-xc-slogan strong { color: var(--em-accent); }
 .em-success-badge { /* legacy, non più usato */
 .em-success-badge {
 	width: 64px; height: 64px; border-radius: 50%;
