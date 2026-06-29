@@ -463,11 +463,16 @@ function Step_Event({ players, onNext, onBack }) {
 		</div>`;
 }
 
-/** Validazione stringente del numero: mobile italiano (3xx, 10 cifre) o estero con prefisso +. */
+/** Validazione stringente del numero per controllarne il più possibile la plausibilità.
+ *  Accetta SOLO: cellulare italiano (prefisso 3, 10 cifre esatte, 2ª cifra 1-9) con
+ *  eventuale prefisso +39/0039; oppure numero estero in formato internazionale (+...). */
 function isValidPhone(raw) {
 	const s = (raw || '').replace(/[\s\-().]/g, '');
-	const it   = /^(\+39|0039|39)?3\d{8,9}$/; // cellulare IT: inizia con 3, 9-10 cifre
-	const intl = /^\+[1-9]\d{7,14}$/;          // estero: + e 8-15 cifre
+	// scarta sequenze tutte uguali (es. 3333333333) o palesemente finte
+	const digits = s.replace(/^\+/, '');
+	if (/^(\d)\1+$/.test(digits)) return false;
+	const it   = /^(?:\+39|0039|39)?3[1-9]\d{8}$/; // cellulare IT: 3 + (1-9) + 8 cifre = 10 totali
+	const intl = /^\+[1-9]\d{9,14}$/;               // estero: + e 10-15 cifre totali
 	return it.test(s) || intl.test(s);
 }
 
