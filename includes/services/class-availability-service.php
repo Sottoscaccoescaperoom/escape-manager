@@ -36,6 +36,49 @@ final class Availability_Service {
 	}
 
 	/**
+	 * Orari "hot" (più prenotati storicamente) per stanza, calcolati dalle
+	 * prenotazioni reali passate. Mappa: room_id => [ 'HH:MM' (UTC) => true ].
+	 * Memoizzato per richiesta. Un orario è "hot" se è tra i 2 più scelti della
+	 * stanza, con almeno 3 prenotazioni e almeno metà del massimo.
+	 */
+	private ?array $hot_by_room = null;
+	private function hot_times_by_room(): array {
+		if ( null !== $this->hot_by_room ) {
+			return $this->hot_by_room;
+		}
+		global $wpdb;
+		$table = em_table( 'bookings' );
+		$rows  = $wpdb->get_results(
+			"SELECT room_id, DATE_FORMAT(start_datetime, '%H:%i') AS hhmm, COUNT(*) AS c
+			 FROM {$table}
+			 WHERE booking_status IN ('confirmed','completed') AND deleted_at IS NULL
+			 GROUP BY room_id, hhmm",
+			ARRAY_A
+		);
+
+		$by = array();
+		foreach ( (array) $rows as $r ) {
+			$by[ (int) $r['room_id'] ][] = array( 'hhmm' => $r['hhmm'], 'c' => (int) $r['c'] );
+		}
+
+		$hot = array();
+		foreach ( $by as $rid => $list ) {
+			usort( $list, static fn( $a, $b ) => $b['c'] <=> $a['c'] );
+			$max = $list[0]['c'];
+			$set = array();
+			foreach ( $list as $i => $row ) {
+				if ( $i < 2 && $row['c'] >= 3 && $row['c'] >= $max * 0.5 ) {
+					$set[ $row['hhmm'] ] = true;
+				}
+			}
+			$hot[ $rid ] = $set;
+		}
+
+		$this->hot_by_room = $hot;
+		return $hot;
+	}
+
+	/**
 	 * Disponibilità su un intervallo di giorni consecutivi (vista Settimana).
 	 *
 	 * @return array Lista per giorno: [{ date: 'Y-m-d', rooms: [...] }]
@@ -104,11 +147,13 @@ final class Availability_Service {
 
 				$status = $this->compute_status( $room_id_int, $slot_start_utc, $slot_end_utc );
 
+				$hot_map = $this->hot_times_by_room();
 				$slot_entry = array(
 					'start'         => $slot_start_local->format( 'c' ),
 					'start_utc'     => $slot_start_utc->format( 'Y-m-d H:i:s' ),
 					'end_utc'       => $slot_end_utc->format( 'Y-m-d H:i:s' ),
 					'status'        => $status['status'],
+					'hot'           => isset( $hot_map[ $room_id_int ][ $slot_start_utc->format( 'H:i' ) ] ),
 				);
 				if ( ! empty( $status['lock_expires_at'] ) ) {
 					$slot_entry['lock_expires_at'] = $status['lock_expires_at'];

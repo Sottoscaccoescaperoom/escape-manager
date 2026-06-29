@@ -128,13 +128,15 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 	const avail = slot.status === 'available';
 	const slotDate = (slot.start || '').slice(0, 10);
 	const crossesDay = dayDate && slotDate && slotDate !== dayDate;
+	const hot = avail && slot.hot;
 	return html`
 		<button
 			key=${slot.start}
-			class=${'emc-slot ' + (avail ? 'is-available' : 'is-locked')}
+			class=${'emc-slot ' + (avail ? 'is-available' : 'is-locked') + (hot ? ' is-hot' : '')}
 			disabled=${!avail}
-			title=${SLOT_TITLE[slot.status] || ''}
+			title=${hot ? 'Orario molto richiesto' : (SLOT_TITLE[slot.status] || '')}
 			onClick=${() => avail && onPick(room, slot)}>
+			${hot ? html`<span class="emc-slot-hot" aria-label="Molto richiesto">🔥</span>` : ''}
 			${avail ? html`
 				<span class="emc-slot-time">${formatTime(slot.start)}</span>
 				${crossesDay ? html`<span class="emc-slot-date">${dayMonthShort(slotDate)}</span>` : ''}
@@ -296,10 +298,6 @@ function Step1_Calendar({ onPick }) {
 					</div>
 				</div>`)}
 
-			<div class="emc-legend">
-				<span class="emc-legend-item"><span class="emc-dot-c emc-dot-available"></span> Disponibile</span>
-				<span class="emc-legend-item"><span class="emc-dot-c emc-dot-locked"></span> Occupato</span>
-			</div>
 		</div>`;
 }
 
@@ -361,7 +359,10 @@ function Step2_Participants({ room, onNext, onBack }) {
 	const [reduced, setReduced] = useState(0);
 	const [free, setFree] = useState(0);
 	const players = adults + reduced + free;
-	const valid = players >= room.min_players && players <= room.max_players;
+	const paying = adults + reduced;                 // adulti + ragazzi (7-12)
+	const inRange = players >= room.min_players && players <= room.max_players;
+	const kidsOk = paying >= 1 && paying >= free;    // i bambini 0-6 non possono essere la maggioranza
+	const valid = inRange && kidsOk;
 
 	return html`
 		<div class="em-step2">
@@ -376,7 +377,13 @@ function Step2_Participants({ room, onNext, onBack }) {
 				ℹ️ I bambini <strong>0-6 anni</strong> entrano <strong>gratis</strong>; i ragazzi <strong>7-12</strong> pagano un ridotto di <strong>€15</strong>; dai <strong>13 anni</strong> tariffa piena. Il totale esatto lo vedi nel riepilogo.
 			</div>
 
-			${!valid && html`<p class="em-error">Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.</p>`}
+			${!valid && html`<p class="em-error">${
+				!kidsOk
+					? (paying < 1
+						? 'Serve almeno un adulto o un ragazzo (7-12): non si può giocare solo con bambini 0-6 anni.'
+						: `I bambini 0-6 anni non possono essere la maggioranza: servono almeno ${free} tra adulti e ragazzi.`)
+					: `Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.`
+			}</p>`}
 
 			<div class="em-actions">
 				<button class="em-btn em-btn-secondary" onClick=${onBack}>Indietro</button>
@@ -419,7 +426,7 @@ function Step_Event({ players, onNext, onBack }) {
 			<div class="em-event-grid">
 				${EVENT_TYPES.map(ev => html`
 					<button key=${ev.id} class=${'em-event-opt ' + (eventType === ev.id ? 'is-active' : '')} onClick=${() => setEventType(ev.id)}>
-						<span class="em-event-ico">${ev.icon}</span><span>${ev.label}</span>
+						<span class="em-event-ico" data-ico=${ev.icon}></span><span>${ev.label}</span>
 					</button>`)}
 			</div>
 
@@ -436,12 +443,8 @@ function Step_Event({ players, onNext, onBack }) {
 				<span>🎁 Nascondi un regalo nella stanza <strong>+€5</strong></span>
 			</label>
 
-			<label class="em-field">Note (opzionale)
-				<textarea rows="2" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Allergie, dediche, esigenze speciali…"></textarea>
-			</label>
-
-			<label class="em-field">Codice sconto (opzionale)
-				<input value=${code} onInput=${e => setCode(e.target.value.toUpperCase())} placeholder="Es. PROMO10" />
+			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)
+				<textarea rows="2" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, persone con disabilità che partecipano al gioco…"></textarea>
 			</label>
 
 			<div class="em-actions">
@@ -457,18 +460,26 @@ function Step_Event({ players, onNext, onBack }) {
 		</div>`;
 }
 
+/** Validazione stringente del numero: mobile italiano (3xx, 10 cifre) o estero con prefisso +. */
+function isValidPhone(raw) {
+	const s = (raw || '').replace(/[\s\-().]/g, '');
+	const it   = /^(\+39|0039|39)?3\d{8,9}$/; // cellulare IT: inizia con 3, 9-10 cifre
+	const intl = /^\+[1-9]\d{7,14}$/;          // estero: + e 8-15 cifre
+	return it.test(s) || intl.test(s);
+}
+
 function Step3_Customer({ requiredFields, onNext, onBack }) {
 	const [form, setForm] = useState({ first_name: '', last_name: '', phone: '+39 ', email: '', birthday: '', address: '' });
 	const set = (k, v) => setForm({ ...form, [k]: v });
 
 	const req = requiredFields || {};
 	const errors = {};
-	if (req.first_name && !form.first_name.trim()) errors.first_name = 'Nome obbligatorio';
-	if (req.last_name && !form.last_name.trim()) errors.last_name = 'Cognome obbligatorio';
-	if (req.phone && !form.phone.trim()) errors.phone = 'Telefono obbligatorio';
-	if (req.email && !form.email.trim()) errors.email = 'Email obbligatoria';
-	if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) errors.email = 'Email non valida';
-	if (form.phone && !/^\+?[\d\s\-().]{6,}$/.test(form.phone)) errors.phone = 'Telefono non valido';
+	// Regola fissa: Nome, Cognome e Cellulare obbligatori; Email opzionale.
+	if (!form.first_name.trim()) errors.first_name = 'Nome obbligatorio';
+	if (!form.last_name.trim())  errors.last_name  = 'Cognome obbligatorio';
+	if (!form.phone.trim())      errors.phone      = 'Cellulare obbligatorio';
+	else if (!isValidPhone(form.phone)) errors.phone = 'Numero di cellulare non valido';
+	if (form.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) errors.email = 'Email non valida';
 
 	const valid = Object.keys(errors).length === 0;
 
@@ -476,19 +487,19 @@ function Step3_Customer({ requiredFields, onNext, onBack }) {
 		<div class="em-step3">
 			<h2>I tuoi dati</h2>
 			<div class="em-form-grid">
-				<label>Nome ${req.first_name ? '*' : ''}
+				<label>Nome *
 					<input value=${form.first_name} onInput=${e => set('first_name', e.target.value)} />
 					${errors.first_name && html`<small class="em-err">${errors.first_name}</small>`}
 				</label>
-				<label>Cognome ${req.last_name ? '*' : ''}
+				<label>Cognome *
 					<input value=${form.last_name} onInput=${e => set('last_name', e.target.value)} />
 					${errors.last_name && html`<small class="em-err">${errors.last_name}</small>`}
 				</label>
-				<label>Telefono ${req.phone ? '*' : ''}
-					<input type="tel" value=${form.phone} onInput=${e => set('phone', e.target.value)} placeholder="+39…" />
+				<label>Cellulare *
+					<input type="tel" value=${form.phone} onInput=${e => set('phone', e.target.value)} placeholder="+39 333 1234567" />
 					${errors.phone && html`<small class="em-err">${errors.phone}</small>`}
 				</label>
-				<label>Email ${req.email ? '*' : ''}
+				<label>Email (opzionale)
 					<input type="email" value=${form.email} onInput=${e => set('email', e.target.value)} />
 					${errors.email && html`<small class="em-err">${errors.email}</small>`}
 				</label>
@@ -562,6 +573,11 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 					<div class="em-price-row em-price-total"><span>Totale in cassa</span><span>${formatMoney(quote.total_cents)}</span></div>
 				</div>`}
 
+			<div class="em-giftnote">
+				🎟️ <strong>Hai una gift card o un QR code valido</strong> (omaggio o sconto)?<br/>
+				Presentalo <strong>alla cassa al momento del pagamento</strong>: l'importo verrà <strong>scalato dal totale</strong> da pagare. Non inserirlo qui: la verifica avviene in sede.
+			</div>
+
 			<h3>Metodo di pagamento</h3>
 			<div class="em-payment-methods">
 				<label class=${'em-payment-option ' + (method === 'on_site' ? 'is-active' : '')}>
@@ -589,11 +605,23 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 function Step5_Result({ booking, onReset }) {
 	return html`
 		<div class="em-step5">
-			<div class="em-success-badge">✓</div>
-			<h2>Prenotazione confermata!</h2>
-			<p>Codice prenotazione: <strong>${booking.booking_code}</strong></p>
-			<p>Ti aspettiamo il ${formatDate(booking.start_datetime)} alle ${formatTime(booking.start_datetime)} per <strong>${booking.room?.name}</strong>.</p>
-			<p>Riceverai una mail di conferma all'indirizzo fornito.</p>
+			<img class="em-step5-logo" src="https://app.sottoscacco.it/logo2.png" alt="Sottoscacco" />
+			<div class="em-lock" aria-hidden="true">
+				<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+					<path class="em-lock-shackle" d="M20 30 V24 a12 12 0 0 1 24 0 V30" />
+					<rect class="em-lock-body" x="14" y="30" width="36" height="26" rx="6" />
+					<circle class="em-lock-keyhole" cx="32" cy="41" r="3.2" />
+					<rect class="em-lock-keyhole" x="30.6" y="42" width="2.8" height="7" rx="1.4" />
+				</svg>
+			</div>
+			<h2>Prenotazione avvenuta con successo!</h2>
+			<p class="em-step5-lead">Riceverai a breve un <strong>messaggio WhatsApp</strong> con il <strong>riepilogo</strong> della prenotazione e tutte le <strong>indicazioni</strong> utili.</p>
+			<div class="em-step5-recap">
+				<div><strong>Stanza:</strong> ${booking.room?.name}</div>
+				<div><strong>Quando:</strong> ${formatDate(booking.start_datetime)} alle ${formatTime(booking.start_datetime)}</div>
+				<div><strong>Codice:</strong> ${booking.booking_code}</div>
+			</div>
+			<p class="em-step5-thanks">Grazie per esserti affidato a <strong>Sottoscacco</strong>.<br/>Ci vediamo presto per la tua avventura!</p>
 			<button class="em-btn em-btn-secondary" onClick=${onReset}>Nuova prenotazione</button>
 		</div>`;
 }
