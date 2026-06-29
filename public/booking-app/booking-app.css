@@ -15,14 +15,14 @@
 	--em-ok: #34d399;
 	--em-danger: #f87171;
 
-	/* Larghezza adattiva allo schermo (esce dalla colonna stretta del tema) così
-	   gli orari di ogni giorno stanno su una sola riga. Centrato senza transform
-	   (per non rompere il modal a tutto schermo). */
-	width: min(100vw - 24px, 1320px);
+	/* Larghezza = quanto basta al contenuto (turni su una riga), non di più.
+	   Esce dalla colonna stretta del tema ma si ferma a ~980px. Centrato senza
+	   transform (per non rompere il modal a tutto schermo). */
+	width: min(100vw - 24px, 980px);
 	max-width: none;
 	position: relative;
 	left: 50%;
-	margin-left: calc(min(100vw - 24px, 1320px) * -0.5);
+	margin-left: calc(min(100vw - 24px, 980px) * -0.5);
 	margin-right: 0;
 	padding: 1.25em;
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -170,7 +170,15 @@
 .emc-day.is-active .emc-day-wd { color: #fff; }
 
 /* righe stanza */
-.emc-body { display: flex; flex-direction: column; gap: 1.6em; }
+.emc-body { display: flex; flex-direction: column; gap: 0.9em; }
+/* ogni stanza = blocco con sfondo leggermente più chiaro, per distinguere a colpo
+   d'occhio "stanza + orari" dalla stanza successiva */
+.emc-room {
+	background: var(--em-panel-2);
+	border: 1px solid var(--em-border);
+	border-radius: 14px;
+	padding: 0.95em 1.05em 1.05em;
+}
 .emc-room-head {
 	display: flex;
 	align-items: center;
