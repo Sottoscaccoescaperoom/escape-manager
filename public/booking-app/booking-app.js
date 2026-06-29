@@ -411,14 +411,30 @@ function eventLabelOf(id) { const e = EVENT_TYPES.find(x => x.id === id); return
 function Step_Event({ players, onNext, onBack }) {
 	const [eventType, setEventType] = useState('standard');
 	const [label, setLabel] = useState('');
-	const [gift, setGift] = useState(false);
 	const [comment, setComment] = useState('');
-	const [code, setCode] = useState('');
+	const [extras, setExtras] = useState([]);            // extra attivi (dalla dashboard)
+	const [selectedExtras, setSelectedExtras] = useState([]); // id scelti
+
+	useEffect(() => {
+		api('GET', '/event-extras/public').then(r => setExtras(r.data || [])).catch(() => {});
+	}, []);
 
 	const isCeleb = CELEBRATIONS.has(eventType);
 	const fieldLabel = EVENT_LABEL_FIELD[eventType];
 	const labelRequired = isCeleb; // festeggiato obbligatorio; nome azienda opzionale
 	const valid = !labelRequired || label.trim().length > 0;
+
+	// Extra applicabili al tipo evento scelto ("all" oppure CSV che contiene l'evento).
+	const visibleExtras = extras.filter(ex => {
+		const t = (ex.event_types || 'all').trim();
+		return t === '' || t === 'all' || t.split(',').map(s => s.trim()).includes(eventType);
+	});
+	// Cambiando evento, scarto dalla selezione gli extra non più validi.
+	useEffect(() => {
+		const okIds = new Set(visibleExtras.map(e => e.id));
+		setSelectedExtras(prev => prev.filter(id => okIds.has(id)));
+	}, [eventType, extras]);
+	const toggleExtra = id => setSelectedExtras(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
 	return html`
 		<div class="em-step-event">
@@ -438,13 +454,19 @@ function Step_Event({ players, onNext, onBack }) {
 					<input value=${label} onInput=${e => setLabel(e.target.value)} placeholder=${fieldLabel} />
 				</label>`}
 
-			<div class="em-extras">
-				<h3 class="em-extras-title">Rendi l'esperienza ancora più speciale</h3>
-				<label class="em-addon">
-					<input type="checkbox" checked=${gift} onChange=${e => setGift(e.target.checked)} />
-					<span>🎁 Nascondi un regalo nella stanza <strong>+€5</strong></span>
-				</label>
-			</div>
+			${visibleExtras.length > 0 && html`
+				<div class="em-extras">
+					<h3 class="em-extras-title">Rendi speciale il tuo evento</h3>
+					<p class="em-extras-sub">Aggiungi un tocco in più alla tua esperienza (facoltativo).</p>
+					${visibleExtras.map(ex => html`
+						<label class="em-addon" key=${ex.id}>
+							<input type="checkbox" checked=${selectedExtras.includes(ex.id)} onChange=${() => toggleExtra(ex.id)} />
+							<span class="em-addon-body">
+								<span class="em-addon-head">${ex.title} <strong>+${formatPriceShort(ex.price_cents)}</strong></span>
+								${ex.description ? html`<span class="em-addon-desc">${ex.description}</span>` : ''}
+							</span>
+						</label>`)}
+				</div>`}
 
 			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)
 				<textarea rows="4" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, persone con disabilità che partecipano al gioco…"></textarea>
@@ -455,9 +477,8 @@ function Step_Event({ players, onNext, onBack }) {
 				<button class="em-btn em-btn-primary" disabled=${!valid} onClick=${() => onNext({
 					event_type: eventType,
 					event_label: label.trim() || null,
-					addon_gift: gift,
+					extras: selectedExtras,
 					customer_comment: comment.trim() || null,
-					discount_code: code.trim() || null,
 				})}>Continua</button>
 			</div>
 		</div>`;
@@ -542,7 +563,7 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 			children_reduced: participants.children_reduced,
 			children_free: participants.children_free,
 			event_type: event.event_type,
-			addon_gift: event.addon_gift,
+			extras: event.extras || [],
 			code: event.discount_code,
 		}).then(r => setQuote(r.data)).catch(e => setQerror(e.message || 'Errore nel calcolo')).finally(() => setQloading(false));
 	}, []);
@@ -578,6 +599,7 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 					${quote.event_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Sconto ${eventLabelOf(event.event_type)} (1 gratis)</span><span>−${formatMoney(quote.event_discount_cents)}</span></div>`}
 					${quote.code_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Codice ${quote.applied_code || ''}</span><span>−${formatMoney(quote.code_discount_cents)}</span></div>`}
 					${quote.addons_cents > 0 && html`<div class="em-price-row"><span>🎁 Regalo nascosto</span><span>+${formatMoney(quote.addons_cents)}</span></div>`}
+					${(quote.extras || []).map(x => html`<div class="em-price-row"><span class="em-extra-row" data-ico="✨">${x.title}</span><span>+${formatMoney(x.price_cents)}</span></div>`)}
 					<div class="em-price-row em-price-total"><span>Totale in cassa</span><span>${formatMoney(quote.total_cents)}</span></div>
 				</div>`}
 
@@ -762,9 +784,8 @@ function App() {
 				children_free: participants.children_free,
 				event_type: eventData.event_type,
 				event_label: eventData.event_label,
-				addon_gift: eventData.addon_gift,
+				extras: eventData.extras || [],
 				customer_comment: eventData.customer_comment,
-				discount_code: eventData.discount_code,
 				customer,
 				payment_method,
 			});
