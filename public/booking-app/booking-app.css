@@ -457,7 +457,6 @@
 .em-xc-slogan { font-size: 1.05em; color: var(--em-text); margin: 0.2em auto 1.3em; max-width: 460px; line-height: 1.5; }
 .em-xc-slogan strong { color: var(--em-accent); }
 .em-success-badge { /* legacy, non più usato */
-.em-success-badge {
 	width: 64px; height: 64px; border-radius: 50%;
 	background: var(--em-ok); color: #07150f;
 	display: flex; align-items: center; justify-content: center;
