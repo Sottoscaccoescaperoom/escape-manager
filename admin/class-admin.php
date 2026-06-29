@@ -31,6 +31,7 @@ final class Admin {
 			'escape-manager-statistics' => array( 'label' => __( 'Statistiche', 'escape-manager' ),   'page' => 'statistics',  'cap' => 'em_view_statistics' ),
 			'escape-manager-rooms'      => array( 'label' => __( 'Stanze', 'escape-manager' ),        'page' => 'rooms',       'cap' => 'em_view_rooms' ),
 			'escape-manager-tariffs'    => array( 'label' => __( 'Tariffe', 'escape-manager' ),       'page' => 'tariffs',     'cap' => 'em_view_settings' ),
+			'escape-manager-extras'     => array( 'label' => __( 'Servizi extra', 'escape-manager' ), 'page' => 'event_extras', 'cap' => 'em_view_settings' ),
 			'escape-manager-promocodes' => array( 'label' => __( 'Codici sconto', 'escape-manager' ), 'page' => 'promocodes',  'cap' => 'em_view_settings' ),
 			'escape-manager-vouchers'   => array( 'label' => __( 'Voucher', 'escape-manager' ),       'page' => 'vouchers',    'cap' => 'em_view_payments' ),
 			'escape-manager-settings'   => array( 'label' => __( 'Impostazioni', 'escape-manager' ),  'page' => 'settings',    'cap' => 'em_view_settings' ),

@@ -1070,6 +1070,105 @@ function TariffEditModal({ tariff, rooms, onClose, onSave }) {
 	`;
 }
 
+/* ===== Servizi extra "Rendi speciale il tuo evento" ===== */
+const EM_EVENT_TYPES = [
+	{ id: 'standard',       label: 'Gioco standard' },
+	{ id: 'compleanno',     label: 'Compleanno' },
+	{ id: 'addio_celibato', label: 'Addio al celibato' },
+	{ id: 'addio_nubilato', label: 'Addio al nubilato' },
+	{ id: 'team_building',  label: 'Team building' },
+];
+function emEventTypesLabel(csv) {
+	if (!csv || csv === 'all') return 'Tutti gli eventi';
+	return csv.split(',').map(s => s.trim()).map(id => (EM_EVENT_TYPES.find(t => t.id === id)?.label || id)).join(', ');
+}
+
+function ExtrasPage() {
+	const [rows, setRows] = useState([]);
+	const [editing, setEditing] = useState(null);
+	const load = useCallback(() => api('GET', '/event-extras').then(r => setRows(r.data || [])), []);
+	useEffect(() => { load(); }, [load]);
+	const save = async (data) => { if (data.id) await api('PUT', `/event-extras/${data.id}`, data); else await api('POST', '/event-extras', data); setEditing(null); load(); };
+	const remove = async (id) => { if (window.confirm('Eliminare questo servizio extra?')) { await api('DELETE', `/event-extras/${id}`); load(); } };
+
+	return html`
+		<div>
+			<header class="em-page-header">
+				<h1>Servizi extra</h1>
+				<button class="em-btn em-btn-primary" onClick=${() => setEditing({ title: '', description: '', price_cents: 0, event_types: 'all', is_active: 1, sort_order: (rows.length + 1) })}>+ Nuovo servizio</button>
+			</header>
+			<p class="em-img-hint" style="margin:0 0 1rem">Compaiono nel booking nella sezione <strong>"Rendi speciale il tuo evento"</strong>, solo per i tipi di evento selezionati (es. la torta solo per Compleanno).</p>
+			<table class="widefat striped em-table">
+				<thead><tr><th>Servizio</th><th>Prezzo</th><th>Eventi</th><th>Stato</th><th></th></tr></thead>
+				<tbody>
+					${rows.length === 0 && html`<tr><td colspan="5">Nessun servizio extra. Creane uno con "+ Nuovo servizio".</td></tr>`}
+					${rows.map(x => html`<tr key=${x.id}>
+						<td><strong>${x.title}</strong>${x.description ? html`<br/><span class="em-img-hint">${x.description}</span>` : ''}</td>
+						<td>${formatMoney(x.price_cents)}</td>
+						<td>${emEventTypesLabel(x.event_types)}</td>
+						<td>${parseInt(x.is_active) ? '✅ Attivo' : '⛔ Nascosto'}</td>
+						<td>
+							<button class="em-btn em-btn-secondary" onClick=${() => setEditing(x)}>Modifica</button>
+							<button class="em-btn em-btn-secondary" onClick=${() => remove(x.id)}>Elimina</button>
+						</td>
+					</tr>`)}
+				</tbody>
+			</table>
+			${editing && html`<${ExtraEditModal} extra=${editing} onClose=${() => setEditing(null)} onSave=${save} />`}
+		</div>
+	`;
+}
+
+function ExtraEditModal({ extra, onClose, onSave }) {
+	const isAll = !extra.event_types || extra.event_types === 'all';
+	const [form, setForm] = useState({
+		...extra,
+		price_units: ((extra.price_cents || 0) / 100).toFixed(2),
+		all: isAll,
+		types: isAll ? [] : extra.event_types.split(',').map(s => s.trim()).filter(Boolean),
+	});
+	const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+	const toggleType = (id) => setForm(f => ({ ...f, types: f.types.includes(id) ? f.types.filter(x => x !== id) : [...f.types, id] }));
+	const handleSave = () => {
+		const event_types = form.all ? 'all' : (form.types.length ? form.types.join(',') : 'all');
+		onSave({
+			id: form.id,
+			title: (form.title || '').trim(),
+			description: (form.description || '').trim() || null,
+			price_cents: Math.round(parseFloat(form.price_units || 0) * 100),
+			event_types,
+			is_active: form.is_active ? 1 : 0,
+			sort_order: parseInt(form.sort_order || 0),
+		});
+	};
+	const canSave = (form.title || '').trim().length > 0;
+
+	return html`
+		<div class="em-modal-backdrop" onClick=${onClose}>
+			<div class="em-modal" onClick=${e => e.stopPropagation()}>
+				<h2>${form.id ? 'Modifica servizio extra' : 'Nuovo servizio extra'}</h2>
+				<label class="em-textarea-label">Titolo <input value=${form.title || ''} onInput=${e => set('title', e.target.value)} placeholder="Es. Torta personalizzata" /></label>
+				<label class="em-textarea-label">Descrizione breve <input value=${form.description || ''} onInput=${e => set('description', e.target.value)} placeholder="Es. Torta a tema con scritta personalizzata" /></label>
+				<div class="em-form-grid">
+					<label>Prezzo (€) <input type="number" step="0.01" value=${form.price_units} onInput=${e => set('price_units', e.target.value)} /></label>
+					<label>Ordine <input type="number" value=${form.sort_order || 0} onInput=${e => set('sort_order', e.target.value)} /></label>
+				</div>
+				<fieldset class="em-extra-types">
+					<legend>Per quali eventi?</legend>
+					<label class="em-extra-type"><input type="checkbox" checked=${form.all} onChange=${e => set('all', e.target.checked)} /> Tutti gli eventi</label>
+					${!form.all && EM_EVENT_TYPES.map(t => html`
+						<label class="em-extra-type" key=${t.id}><input type="checkbox" checked=${form.types.includes(t.id)} onChange=${() => toggleType(t.id)} /> ${t.label}</label>`)}
+				</fieldset>
+				<label class="em-extra-type"><input type="checkbox" checked=${!!form.is_active} onChange=${e => set('is_active', e.target.checked ? 1 : 0)} /> Attivo (visibile nel booking)</label>
+				<div class="em-actions">
+					<button class="em-btn em-btn-secondary" onClick=${onClose}>Annulla</button>
+					<button class="em-btn em-btn-primary" disabled=${!canSave} onClick=${handleSave}>Salva</button>
+				</div>
+			</div>
+		</div>
+	`;
+}
+
 function SettingsPage() {
 	const [data, setData] = useState(null);
 	const [msg, setMsg] = useState(null);
@@ -1201,6 +1300,7 @@ function App() {
 	else if (page === 'statistics' && perms.em_view_statistics) content = html`<${StatisticsPage} />`;
 	else if (page === 'rooms' && perms.em_view_rooms) content = html`<${RoomsPage} />`;
 	else if (page === 'tariffs' && perms.em_view_settings) content = html`<${TariffsPage} />`;
+	else if (page === 'event_extras' && perms.em_view_settings) content = html`<${ExtrasPage} />`;
 	else if (page === 'promocodes' && perms.em_view_settings) content = html`<${PromocodesPage} />`;
 	else if (page === 'vouchers' && perms.em_view_payments) content = html`<${VouchersPage} />`;
 	else if (page === 'settings' && perms.em_view_settings) content = html`<${SettingsPage} />`;

@@ -301,3 +301,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c
 .em-img-prev { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--c-border); }
 .em-img-hint { display: block; margin-top: 0.35rem; color: var(--c-muted); font-size: 0.78rem; line-height: 1.45; }
 .em-img-hint strong { color: var(--c-text); }
+
+/* Servizi extra: selezione tipi evento */
+.em-extra-types { border: 1px solid var(--c-border); border-radius: 8px; padding: 0.6rem 0.9rem; margin: 0.7rem 0; }
+.em-extra-types legend { font-weight: 700; padding: 0 0.4rem; }
+.em-extra-type { display: flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0; }
+.em-extra-type input { width: auto; }
