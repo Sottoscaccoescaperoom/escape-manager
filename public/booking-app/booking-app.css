@@ -18,11 +18,11 @@
 	/* Larghezza = quanto basta al contenuto (turni su una riga), non di più.
 	   Esce dalla colonna stretta del tema ma si ferma a ~980px. Centrato senza
 	   transform (per non rompere il modal a tutto schermo). */
-	width: min(100vw - 24px, 980px);
+	width: min(100vw - 24px, 900px);
 	max-width: none;
 	position: relative;
 	left: 50%;
-	margin-left: calc(min(100vw - 24px, 980px) * -0.5);
+	margin-left: calc(min(100vw - 24px, 900px) * -0.5);
 	margin-right: 0;
 	padding: 1.25em;
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -174,11 +174,13 @@
 /* ogni stanza = blocco con sfondo leggermente più chiaro, per distinguere a colpo
    d'occhio "stanza + orari" dalla stanza successiva */
 .emc-room {
-	background: var(--em-panel-2);
+	background: #1c1c23;
 	border: 1px solid var(--em-border);
 	border-radius: 14px;
 	padding: 0.95em 1.05em 1.05em;
 }
+/* zebra: una stanza sì e una no leggermente più chiara, per distinguerle meglio */
+.emc-room:nth-child(even) { background: #26262f; }
 .emc-room-head {
 	display: flex;
 	align-items: center;

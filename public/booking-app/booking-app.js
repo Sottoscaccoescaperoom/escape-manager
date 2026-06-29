@@ -98,7 +98,8 @@ function weekdayLong(iso) { return new Date(iso + 'T00:00:00').toLocaleDateStrin
 function monthCap(iso) { const m = monthShort(iso); return m.charAt(0).toUpperCase() + m.slice(1); }
 function monthLong(iso) { return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { month: 'long' }); }
 function monthLongCap(iso) { const m = monthLong(iso); return m.charAt(0).toUpperCase() + m.slice(1); }
-function pickerLabel(iso) { return dayNum(iso) + ' ' + monthCap(iso); }
+function yearOf(iso) { return new Date(iso + 'T00:00:00').getFullYear(); }
+function pickerLabel(iso) { return dayNum(iso) + ' ' + monthLong(iso) + ' ' + yearOf(iso); }
 /** Minuti dall'inizio giornata, con i turni notte (prima delle 05:00) spinti in fondo. */
 function slotMinutes(slot) {
 	const m = String(slot && slot.start || '').match(/T(\d{2}):(\d{2})/);
