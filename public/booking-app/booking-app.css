@@ -396,8 +396,16 @@
 }
 .em-payment-option.is-active { border-color: var(--em-accent); background: rgba(47,109,246,0.08); }
 .em-payment-option input { width: auto; }
-.em-terms { display: flex; align-items: center; gap: 0.5em; margin-top: 1em; color: var(--em-muted); font-size: 0.9em; }
-.em-terms input { width: auto; }
+.em-terms {
+	display: flex; align-items: center; gap: 0.8em; margin-top: 1.2em;
+	padding: 0.95em 1.15em; border: 2px solid var(--em-accent); border-radius: 12px;
+	background: rgba(47,109,246,0.12); color: var(--em-text);
+	font-size: 1.05em; font-weight: 600; cursor: pointer;
+}
+.em-terms input { width: 24px; height: 24px; flex: 0 0 auto; accent-color: var(--em-accent); cursor: pointer; margin: 0; }
+/* quando NON spuntata, pulsa leggermente per farsi notare */
+.em-terms:has(input:not(:checked)) { animation: em-terms-pulse 1.8s ease-in-out infinite; }
+@keyframes em-terms-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(47,109,246,0.0); } 50% { box-shadow: 0 0 0 4px rgba(47,109,246,0.18); } }
 
 .em-actions { display: flex; justify-content: space-between; gap: 0.75em; margin-top: 1.4em; }
 .em-btn {

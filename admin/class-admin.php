@@ -135,6 +135,9 @@ final class Admin {
 			'wpMenu'      => true,
 		) );
 
+		// Media Library per il caricamento icone/loghi stanza (wp.media nel CRM).
+		wp_enqueue_media();
+
 		wp_enqueue_script( 'em-crm-app' );
 		wp_enqueue_style( 'em-crm-app' );
 	}

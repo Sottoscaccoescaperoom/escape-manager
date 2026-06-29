@@ -10,6 +10,22 @@ import htm from 'https://esm.sh/htm@3.1.1';
 const html = htm.bind(h);
 const CONFIG = window.EM_CRM_CONFIG || {};
 
+/** Apre la Media Library di WordPress per scegliere/caricare un'immagine o GIF. */
+function emPickMedia(onSelect) {
+	if (!window.wp || !window.wp.media) { window.alert('Libreria media non disponibile. Ricarica la pagina.'); return; }
+	const frame = window.wp.media({
+		title: 'Scegli o carica icona / logo della stanza',
+		button: { text: 'Usa questa immagine' },
+		library: { type: 'image' },
+		multiple: false,
+	});
+	frame.on('select', () => {
+		const a = frame.state().get('selection').first().toJSON();
+		if (a && a.url) onSelect(a.url);
+	});
+	frame.open();
+}
+
 async function api(method, path, body = null) {
 	const opts = {
 		method,
@@ -936,7 +952,14 @@ function RoomEditModal({ room, locations, onClose, onSaved }) {
 					<label>Durata (min) <input type="number" value=${form.duration_minutes || 60} onInput=${e => set('duration_minutes', parseInt(e.target.value))} /></label>
 					<label>Min giocatori <input type="number" value=${form.min_players || 2} onInput=${e => set('min_players', parseInt(e.target.value))} /></label>
 					<label>Max giocatori <input type="number" value=${form.max_players || 6} onInput=${e => set('max_players', parseInt(e.target.value))} /></label>
-					<label>Foto URL <input value=${form.image_url || ''} onInput=${e => set('image_url', e.target.value)} /></label>
+					<label>Icona / logo stanza (anche GIF animata)
+						<div class="em-img-field">
+							<button type="button" class="em-img-btn" onClick=${() => emPickMedia(u => set('image_url', u))}>📁 Carica / scegli</button>
+							<input value=${form.image_url || ''} onInput=${e => set('image_url', e.target.value)} placeholder="URL immagine o GIF" />
+							${form.image_url ? html`<img class="em-img-prev" src=${form.image_url} alt="anteprima" />` : ''}
+						</div>
+						<small class="em-img-hint">Formato: <strong>PNG, JPG, WebP o GIF animata</strong> · immagine <strong>quadrata</strong> (consigliato 256×256 px, minimo 128×128) · peso <strong>max ~2 MB</strong> (per le GIF tienile leggere per un caricamento veloce).</small>
+					</label>
 					<label>Attiva
 						<select value=${form.is_active ? '1' : '0'} onChange=${e => set('is_active', parseInt(e.target.value))}>
 							<option value="1">Sì</option><option value="0">No</option>
