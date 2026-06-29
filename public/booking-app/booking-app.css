@@ -435,7 +435,18 @@
 @keyframes em-shackle { 0% { transform: translateY(-13px); opacity: 0; } 60% { transform: translateY(3px); opacity: 1; } 100% { transform: translateY(0); } }
 @keyframes em-lockglow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255,207,6,0)); } 50% { filter: drop-shadow(0 0 12px rgba(255,207,6,0.6)); } }
 @keyframes em-fadein { to { opacity: 1; } }
-.em-step5 h2 { margin-bottom: 0.4em; }
+.em-step5 h2 { margin-bottom: 0.6em; }
+/* badge WhatsApp: conferma inviata, ben visibile */
+.em-wa {
+	display: inline-flex; align-items: center; gap: 0.6em;
+	margin: 0 auto 0.9em; padding: 0.6em 1.1em 0.6em 0.6em;
+	background: #25D366; color: #06351c; border-radius: 999px;
+	font-weight: 800; font-size: 1.02em;
+	box-shadow: 0 6px 18px rgba(37,211,102,0.30);
+}
+.em-wa-ico { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; background: #1ebe57; border-radius: 50%; }
+.em-wa-ico svg { width: 20px; height: 20px; display: block; }
+.em-wa-txt strong { color: #042a16; }
 .em-step5-lead { font-size: 1.12em; color: var(--em-text); line-height: 1.55; max-width: 460px; margin: 0 auto 1.1em; }
 .em-step5-recap {
 	display: inline-grid; gap: 0.35em; text-align: left;
@@ -454,10 +465,11 @@
 	min-width: 72px; padding: 0.7em 0.4em;
 	background: var(--em-panel-2); border: 1px solid var(--em-border); border-radius: 12px;
 }
-.em-xc-num { font-size: 1.9em; font-weight: 900; color: var(--em-accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.em-xc-cell { border-color: rgba(255,207,6,0.35); }
+.em-xc-num { font-size: 1.9em; font-weight: 900; color: #ffcf06; line-height: 1; font-variant-numeric: tabular-nums; }
 .em-xc-lbl { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.08em; color: var(--em-muted); }
 .em-xc-slogan { font-size: 1.05em; color: var(--em-text); margin: 0.2em auto 1.3em; max-width: 460px; line-height: 1.5; }
-.em-xc-slogan strong { color: var(--em-accent); }
+.em-xc-slogan strong { color: #ffcf06; }
 .em-success-badge { /* legacy, non più usato */
 	width: 64px; height: 64px; border-radius: 50%;
 	background: var(--em-ok); color: #07150f;
