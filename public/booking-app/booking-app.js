@@ -194,8 +194,24 @@ function Step1_Calendar({ onPick }) {
 		return arr;
 	}, [weekStart]);
 
-	const onPickDate = (iso) => { if (!iso) return; setSelectedDate(iso); setStripStart(iso); };
-	const dayPrev = () => { const ns = isoAddDays(stripStart, -STRIP); setStripStart(ns); setSelectedDate(ns); };
+	// §Fix 2026-07-01 — Non si può navigare al passato dal frontend cliente.
+	const today = isoToday();
+	const isPast = (iso) => iso < today;
+	const canGoPrevStrip = !isPast(isoAddDays(stripStart, -1));
+	const canGoPrevWeek = !isPast(isoAddDays(weekStart, -1));
+
+	const onPickDate = (iso) => {
+		if (!iso) return;
+		if (isPast(iso)) return; // clip al passato
+		setSelectedDate(iso);
+		setStripStart(iso);
+	};
+	const dayPrev = () => {
+		let ns = isoAddDays(stripStart, -STRIP);
+		if (isPast(ns)) ns = today; // non andare oltre oggi
+		setStripStart(ns);
+		setSelectedDate(ns);
+	};
 	const dayNext = () => { const ns = isoAddDays(stripStart, STRIP); setStripStart(ns); setSelectedDate(ns); };
 
 	const dayRooms = (view === 'day' && data && data[0]) ? data[0].rooms : [];
@@ -210,16 +226,16 @@ function Step1_Calendar({ onPick }) {
 					<span class="emc-cal-ico">📅</span>
 					<span class="emc-datepick-label">${pickerLabel(selectedDate)}</span>
 					<span class="emc-caret">▾</span>
-					<input type="date" value=${selectedDate} onInput=${e => onPickDate(e.target.value)} />
+					<input type="date" value=${selectedDate} min=${today} onInput=${e => onPickDate(e.target.value)} />
 				</label>
 			</div>
 
 			${view === 'day' && html`
 				<div class="emc-strip">
-					<button class="emc-arrow" onClick=${dayPrev} aria-label="Precedente">‹</button>
+					<button class="emc-arrow" onClick=${dayPrev} disabled=${!canGoPrevStrip} aria-label="Precedente">‹</button>
 					<div class="emc-days">
 						${stripDays.map(iso => html`
-							<button key=${iso} class=${'emc-day ' + (iso === selectedDate ? 'is-active' : '')} onClick=${() => onPickDate(iso)}>
+							<button key=${iso} class=${'emc-day ' + (iso === selectedDate ? 'is-active' : '') + (isPast(iso) ? ' is-past' : '')} disabled=${isPast(iso)} onClick=${() => onPickDate(iso)}>
 								<span class="emc-day-wd">${weekdayLong(iso)}</span>
 								<span class="emc-day-dm">${dayNum(iso)}</span>
 							</button>`)}
@@ -229,7 +245,7 @@ function Step1_Calendar({ onPick }) {
 
 			${view === 'week' && html`
 				<div class="emc-strip">
-					<button class="emc-arrow" onClick=${() => setWeekStart(isoAddDays(weekStart, -7))} aria-label="Precedente">‹</button>
+					<button class="emc-arrow" onClick=${() => { const ns = isoAddDays(weekStart, -7); setWeekStart(isPast(ns) ? today : ns); }} disabled=${!canGoPrevWeek} aria-label="Precedente">‹</button>
 					<div class="emc-days">
 						${weekPills.map(ws => html`
 							<button key=${ws} class=${'emc-day ' + (ws === weekStart ? 'is-active' : '')} onClick=${() => setWeekStart(ws)}>
@@ -318,6 +334,53 @@ function Stepper({ current }) {
 		</div>`;
 }
 
+/**
+ * §Fix 2026-07-01 — WatchingAlert: sostituisce il vecchio Countdown/lock.
+ *
+ * Comportamento: dopo un periodo di INATTIVITA' dell'utente (nessun click,
+ * scroll o tasto per >= 2 minuti), mostra un breve avviso fittizio
+ * "qualcuno sta guardando il tuo turno" per creare urgenza gentile.
+ * Timing randomizzato per non sembrare artificiale (2-5 min).
+ * L'alert scompare automaticamente dopo 6 secondi e si "arma" di nuovo
+ * quando l'utente ricomincia a interagire e resta fermo per un altro
+ * ciclo.
+ */
+function WatchingAlert() {
+	const [visible, setVisible] = useState(false);
+	const timerRef = useRef(null);
+	const hideRef = useRef(null);
+	useEffect(() => {
+		function arm() {
+			if (timerRef.current) clearTimeout(timerRef.current);
+			// 2-5 minuti di inattivita' → alert
+			const delay = (120 + Math.floor(Math.random() * 180)) * 1000;
+			timerRef.current = setTimeout(() => {
+				setVisible(true);
+				if (hideRef.current) clearTimeout(hideRef.current);
+				hideRef.current = setTimeout(() => setVisible(false), 6000);
+			}, delay);
+		}
+		function onActivity() {
+			// L'attivita' resetta il timer di inattivita'.
+			if (!visible) arm();
+		}
+		const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+		events.forEach(ev => window.addEventListener(ev, onActivity, { passive: true }));
+		arm();
+		return () => {
+			events.forEach(ev => window.removeEventListener(ev, onActivity));
+			if (timerRef.current) clearTimeout(timerRef.current);
+			if (hideRef.current) clearTimeout(hideRef.current);
+		};
+	}, [visible]);
+	if (!visible) return null;
+	return html`
+		<div class="em-watching-alert" role="status" aria-live="polite">
+			<span class="em-watching-ico">👀</span>
+			<span class="em-watching-text">Qualcun altro sta guardando questo turno in questo momento…</span>
+		</div>`;
+}
+
 function Countdown({ expiresAt, onExpire }) {
 	// Aggiornamento imperativo via ref: il componente si disegna UNA volta e
 	// il testo cambia direttamente nel DOM. Niente re-render → niente accumulo
@@ -370,12 +433,16 @@ function Step2_Participants({ room, onNext, onBack }) {
 			<p class="em-muted-p">Stanza <strong>${room.room_name}</strong> · ${room.min_players}-${room.max_players} giocatori</p>
 
 			${Counter({ label: 'Adulti', hint: '13+ anni · tariffa piena', value: adults, set: setAdults })}
-			${Counter({ label: 'Ragazzi', hint: '7-12 anni · ridotto €15', value: reduced, set: setReduced })}
-			${Counter({ label: 'Bambini', hint: '0-6 anni · gratis', value: free, set: setFree })}
+			${Counter({ label: 'Ragazzi *', hint: '7-12 anni · ridotto €15', value: reduced, set: setReduced })}
+			${Counter({ label: 'Bambini *', hint: '0-6 anni · gratis', value: free, set: setFree })}
 
 			<div class="em-info-box">
 				ℹ️ I bambini <strong>0-6 anni</strong> entrano <strong>gratis</strong>; i ragazzi <strong>7-12</strong> pagano un ridotto di <strong>€15</strong>; dai <strong>13 anni</strong> tariffa piena. Il totale esatto lo vedi nel riepilogo.
 			</div>
+			${(reduced > 0 || free > 0) && html`
+				<div class="em-info-box em-info-warn">
+					<strong>* Documento richiesto:</strong> per confermare la tariffa ridotta o l'ingresso gratuito, il giorno del gioco sarà chiesto un documento d'identità dei minori.
+				</div>`}
 
 			${!valid && html`<p class="em-error">${
 				!kidsOk
@@ -469,7 +536,7 @@ function Step_Event({ players, onNext, onBack }) {
 				</div>`}
 
 			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)
-				<textarea rows="4" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, persone con disabilità che partecipano al gioco…"></textarea>
+				<textarea rows="4" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, fobie o paure di chi partecipa al gioco…"></textarea>
 			</label>
 
 			<div class="em-actions">
@@ -808,7 +875,10 @@ function App() {
 	return html`
 		<div class="em-booking-app">
 			${step > 0 && html`<${Stepper} current=${step} />`}
-			${lock && step > 0 && step < 5 && html`<${Countdown} expiresAt=${lock.expires_at} onExpire=${() => setLockExpired(true)} />`}
+			${/* §Fix 2026-07-01 — Countdown rimosso: non blocchiamo piu' il turno
+			     agli altri mentre uno sta prenotando. Vedi WatchingAlert per la
+			     notifica "qualcuno sta guardando" (2 min di inattivita'). */ ''}
+			${step > 0 && step < 5 && html`<${WatchingAlert} />`}
 
 			${step === 0 && html`<${Step1_Calendar} onPick=${pickSlot} />`}
 			${step === 1 && html`<${Step2_Participants} room=${selectedRoom} onNext=${p => { setParticipants(p); setStep(2); }} onBack=${backToCalendar} />`}

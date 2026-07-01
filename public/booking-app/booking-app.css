@@ -170,17 +170,16 @@
 .emc-day.is-active .emc-day-wd { color: #fff; }
 
 /* righe stanza */
-.emc-body { display: flex; flex-direction: column; gap: 0.9em; }
-/* ogni stanza = blocco con sfondo leggermente più chiaro, per distinguere a colpo
-   d'occhio "stanza + orari" dalla stanza successiva */
+/* §Fix 2026-07-01 — più aria tra stanze (era 0.9em) e niente più zebra: le stanze
+   avevano sfondi alternati che risultavano rumorosi. Ora sfondo uniforme e
+   separazione data dallo spazio verticale + un divider leggero. */
+.emc-body { display: flex; flex-direction: column; gap: 1.6em; }
 .emc-room {
 	background: #1c1c23;
 	border: 1px solid var(--em-border);
 	border-radius: 14px;
-	padding: 0.95em 1.05em 1.05em;
+	padding: 1.1em 1.2em 1.15em;
 }
-/* zebra: una stanza sì e una no leggermente più chiara, per distinguerle meglio */
-.emc-room:nth-child(even) { background: #26262f; }
 .emc-room-head {
 	display: flex;
 	align-items: center;
@@ -562,3 +561,41 @@
 	font-size: 1.25em; font-weight: 800;
 }
 .em-price-row.em-price-total span:last-child { color: var(--em-accent); }
+
+/* §Fix 2026-07-01 — giorni passati disabilitati (calendario cliente) */
+.emc-day.is-past, .emc-day[disabled] {
+	opacity: 0.28;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+.emc-arrow[disabled] {
+	opacity: 0.3;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* §Fix 2026-07-01 — box "documento richiesto" per minori */
+.em-info-box.em-info-warn {
+	background: rgba(251, 191, 36, 0.08);
+	border-left: 3px solid #fbbf24;
+	color: #fde68a;
+}
+
+/* §Fix 2026-07-01 — WatchingAlert (fittizio, urgenza gentile) */
+.em-watching-alert {
+	display: inline-flex; align-items: center; gap: 0.5em;
+	margin: 0 0 1em;
+	padding: 0.55em 0.9em;
+	border-radius: 999px;
+	background: rgba(251, 191, 36, 0.12);
+	border: 1px solid rgba(251, 191, 36, 0.35);
+	color: #fde68a;
+	font-size: 0.86em;
+	animation: em-watching-in 240ms ease-out;
+}
+.em-watching-ico { font-size: 1.05em; }
+.em-watching-text { line-height: 1.3; }
+@keyframes em-watching-in {
+	from { opacity: 0; transform: translateY(-4px); }
+	to { opacity: 1; transform: translateY(0); }
+}
