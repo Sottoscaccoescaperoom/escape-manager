@@ -1091,21 +1091,38 @@ function ExtrasPage() {
 	const save = async (data) => { if (data.id) await api('PUT', `/event-extras/${data.id}`, data); else await api('POST', '/event-extras', data); setEditing(null); load(); };
 	const remove = async (id) => { if (window.confirm('Eliminare questo servizio extra?')) { await api('DELETE', `/event-extras/${id}`); load(); } };
 
+	// §Fix 2026-07-01 — riordino via su/giu con persistenza (drag&drop richiede
+	// libs esterne, i pulsanti sono chiari e funzionano anche da mobile).
+	const move = async (idx, delta) => {
+		const j = idx + delta;
+		if (j < 0 || j >= rows.length) return;
+		const next = rows.slice();
+		[next[idx], next[j]] = [next[j], next[idx]];
+		setRows(next);
+		try { await api('POST', '/event-extras/reorder', { order: next.map(x => x.id) }); }
+		catch (e) { load(); alert('Errore riordino: ' + (e.message || e)); }
+	};
+
 	return html`
 		<div>
 			<header class="em-page-header">
 				<h1>Servizi extra</h1>
-				<button class="em-btn em-btn-primary" onClick=${() => setEditing({ title: '', description: '', price_cents: 0, event_types: 'all', is_active: 1, sort_order: (rows.length + 1) })}>+ Nuovo servizio</button>
+				<button class="em-btn em-btn-primary" onClick=${() => setEditing({ title: '', description: '', price_cents: 0, event_types: 'all', is_active: 1, sort_order: (rows.length + 1), info_url: '' })}>+ Nuovo servizio</button>
 			</header>
-			<p class="em-img-hint" style="margin:0 0 1rem">Compaiono nel booking nella sezione <strong>"Rendi speciale il tuo evento"</strong>, solo per i tipi di evento selezionati (es. la torta solo per Compleanno).</p>
+			<p class="em-img-hint" style="margin:0 0 1rem">Compaiono nel booking nella sezione <strong>"Rendi speciale il tuo evento"</strong>, solo per i tipi di evento selezionati (es. la torta solo per Compleanno). Prezzo 0 = <strong>Omaggio</strong>. Se aggiungi un link, sul booking apparirà "Scopri di più" che apre la pagina in una nuova scheda.</p>
 			<table class="widefat striped em-table">
-				<thead><tr><th>Servizio</th><th>Prezzo</th><th>Eventi</th><th>Stato</th><th></th></tr></thead>
+				<thead><tr><th style="width:70px">Ordine</th><th>Servizio</th><th>Prezzo</th><th>Eventi</th><th>Link</th><th>Stato</th><th></th></tr></thead>
 				<tbody>
-					${rows.length === 0 && html`<tr><td colspan="5">Nessun servizio extra. Creane uno con "+ Nuovo servizio".</td></tr>`}
-					${rows.map(x => html`<tr key=${x.id}>
+					${rows.length === 0 && html`<tr><td colspan="7">Nessun servizio extra. Creane uno con "+ Nuovo servizio".</td></tr>`}
+					${rows.map((x, i) => html`<tr key=${x.id}>
+						<td>
+							<button class="em-btn em-btn-secondary" style="padding:2px 6px" title="Sposta su" disabled=${i === 0} onClick=${() => move(i, -1)}>▲</button>
+							<button class="em-btn em-btn-secondary" style="padding:2px 6px;margin-left:2px" title="Sposta giù" disabled=${i === rows.length - 1} onClick=${() => move(i, 1)}>▼</button>
+						</td>
 						<td><strong>${x.title}</strong>${x.description ? html`<br/><span class="em-img-hint">${x.description}</span>` : ''}</td>
-						<td>${formatMoney(x.price_cents)}</td>
+						<td>${(parseInt(x.price_cents) || 0) === 0 ? html`<em>Omaggio</em>` : formatMoney(x.price_cents)}</td>
 						<td>${emEventTypesLabel(x.event_types)}</td>
+						<td>${x.info_url ? html`<a href=${x.info_url} target="_blank" rel="noopener">apri ↗</a>` : html`<span class="em-img-hint">—</span>`}</td>
 						<td>${parseInt(x.is_active) ? '✅ Attivo' : '⛔ Nascosto'}</td>
 						<td>
 							<button class="em-btn em-btn-secondary" onClick=${() => setEditing(x)}>Modifica</button>
@@ -1139,9 +1156,11 @@ function ExtraEditModal({ extra, onClose, onSave }) {
 			event_types,
 			is_active: form.is_active ? 1 : 0,
 			sort_order: parseInt(form.sort_order || 0),
+			info_url: (form.info_url || '').trim() || null,
 		});
 	};
 	const canSave = (form.title || '').trim().length > 0;
+	const priceIsFree = !form.price_units || parseFloat(form.price_units) <= 0;
 
 	return html`
 		<div class="em-modal-backdrop" onClick=${onClose}>
@@ -1150,9 +1169,16 @@ function ExtraEditModal({ extra, onClose, onSave }) {
 				<label class="em-textarea-label">Titolo <input value=${form.title || ''} onInput=${e => set('title', e.target.value)} placeholder="Es. Torta personalizzata" /></label>
 				<label class="em-textarea-label">Descrizione breve <input value=${form.description || ''} onInput=${e => set('description', e.target.value)} placeholder="Es. Torta a tema con scritta personalizzata" /></label>
 				<div class="em-form-grid">
-					<label>Prezzo (€) <input type="number" step="0.01" value=${form.price_units} onInput=${e => set('price_units', e.target.value)} /></label>
+					<label>Prezzo (€) — lascia 0 per <strong>Omaggio</strong>
+						<input type="number" step="0.01" min="0" value=${form.price_units} onInput=${e => set('price_units', e.target.value)} />
+						${priceIsFree && html`<small class="em-img-hint">Verrà mostrato come "Omaggio" nel booking cliente.</small>`}
+					</label>
 					<label>Ordine <input type="number" value=${form.sort_order || 0} onInput=${e => set('sort_order', e.target.value)} /></label>
 				</div>
+				<label class="em-textarea-label">Link "Scopri di più" (opzionale)
+					<input type="url" value=${form.info_url || ''} onInput=${e => set('info_url', e.target.value)} placeholder="https://sottoscacco.it/servizi/torta" />
+					<small class="em-img-hint">Se compilato, sul booking apparirà un link che apre questa pagina in una nuova scheda.</small>
+				</label>
 				<fieldset class="em-extra-types">
 					<legend>Per quali eventi?</legend>
 					<label class="em-extra-type"><input type="checkbox" checked=${form.all} onChange=${e => set('all', e.target.checked)} /> Tutti gli eventi</label>

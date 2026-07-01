@@ -45,6 +45,7 @@ final class Event_Extra_Repository extends Base_Repository {
 				'event_types' => (string) ( $data['event_types'] ?? 'all' ),
 				'is_active'   => isset( $data['is_active'] ) ? ( ! empty( $data['is_active'] ) ? 1 : 0 ) : 1,
 				'sort_order'  => (int) ( $data['sort_order'] ?? 0 ),
+				'info_url'    => isset( $data['info_url'] ) ? esc_url_raw( (string) $data['info_url'] ) : null,
 			),
 			$this->timestamps_for_insert()
 		);
@@ -58,6 +59,21 @@ final class Event_Extra_Repository extends Base_Repository {
 		if ( isset( $row['is_active'] ) ) {
 			$row['is_active'] = ! empty( $row['is_active'] ) ? 1 : 0;
 		}
+		if ( array_key_exists( 'info_url', $row ) ) {
+			$row['info_url'] = $row['info_url'] === null || $row['info_url'] === '' ? null : esc_url_raw( (string) $row['info_url'] );
+		}
 		return false !== $this->wpdb->update( $this->table, $row, array( 'id' => $id ) );
+	}
+
+	/** Riordina in blocco: order[i] = id → sort_order = i. */
+	public function reorder( array $order ): void {
+		foreach ( $order as $i => $id ) {
+			$id = (int) $id;
+			if ( $id <= 0 ) continue;
+			$this->wpdb->update( $this->table, array(
+				'sort_order' => (int) $i,
+				'updated_at' => current_time( 'mysql' ),
+			), array( 'id' => $id ) );
+		}
 	}
 }

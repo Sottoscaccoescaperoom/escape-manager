@@ -525,14 +525,23 @@ function Step_Event({ players, onNext, onBack }) {
 				<div class="em-extras">
 					<h3 class="em-extras-title">Rendi speciale il tuo evento</h3>
 					<p class="em-extras-sub">Aggiungi un tocco in più alla tua esperienza (facoltativo).</p>
-					${visibleExtras.map(ex => html`
-						<label class="em-addon" key=${ex.id}>
-							<input type="checkbox" checked=${selectedExtras.includes(ex.id)} onChange=${() => toggleExtra(ex.id)} />
-							<span class="em-addon-body">
-								<span class="em-addon-head">${ex.title} <strong>+${formatPriceShort(ex.price_cents)}</strong></span>
-								${ex.description ? html`<span class="em-addon-desc">${ex.description}</span>` : ''}
-							</span>
-						</label>`)}
+					${visibleExtras.map(ex => {
+						// §Fix 2026-07-01 — prezzo 0 = "Omaggio"; se e' presente info_url
+						// mostriamo un piccolo link "Scopri di piu'" che apre in nuova scheda.
+						const cents = parseInt(ex.price_cents, 10) || 0;
+						const priceLabel = cents === 0 ? 'Omaggio' : ('+' + formatPriceShort(cents));
+						return html`
+							<label class="em-addon" key=${ex.id}>
+								<input type="checkbox" checked=${selectedExtras.includes(ex.id)} onChange=${() => toggleExtra(ex.id)} />
+								<span class="em-addon-body">
+									<span class="em-addon-head">
+										${ex.title} <strong class=${cents === 0 ? 'em-addon-free' : ''}>${priceLabel}</strong>
+									</span>
+									${ex.description ? html`<span class="em-addon-desc">${ex.description}</span>` : ''}
+									${ex.info_url ? html`<a class="em-addon-link" href=${ex.info_url} target="_blank" rel="noopener noreferrer" onClick=${e => e.stopPropagation()}>Scopri di più ↗</a>` : ''}
+								</span>
+							</label>`;
+					})}
 				</div>`}
 
 			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)

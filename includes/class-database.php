@@ -403,7 +403,7 @@ final class Database {
 				KEY booking_id (booking_id)
 			) {$charset_collate};",
 
-			// 22) event_extras (em_db_version 4) — servizi extra "Rendi speciale il tuo evento"
+			// 22) event_extras (em_db_version 4 → 5: aggiunto info_url per link "scopri di piu'")
 			"CREATE TABLE {$p}em_event_extras (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 				title VARCHAR(191) NOT NULL,
@@ -412,6 +412,7 @@ final class Database {
 				event_types VARCHAR(255) NOT NULL DEFAULT 'all',
 				is_active TINYINT(1) NOT NULL DEFAULT 1,
 				sort_order INT NOT NULL DEFAULT 0,
+				info_url VARCHAR(500) NULL,
 				created_at DATETIME NOT NULL,
 				updated_at DATETIME NULL,
 				PRIMARY KEY  (id),

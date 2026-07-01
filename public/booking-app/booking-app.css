@@ -531,7 +531,16 @@
 .em-addon-body { display: flex; flex-direction: column; gap: 0.15em; }
 .em-addon-head { font-weight: 700; }
 .em-addon-head strong { color: var(--em-accent); }
+.em-addon-head strong.em-addon-free { color: var(--em-ok); }
 .em-addon-desc { font-size: 0.88em; color: var(--em-muted); line-height: 1.4; }
+.em-addon-link {
+	margin-top: 0.35em;
+	color: var(--em-accent);
+	font-size: 0.85em;
+	text-decoration: underline;
+	align-self: flex-start;
+}
+.em-addon-link:hover { color: var(--em-accent-hover); }
 .em-extras-sub { margin: -0.3em 0 0.4em !important; font-size: 0.9em; color: var(--em-muted); }
 .em-extra-row::before { content: attr(data-ico); margin-right: 0.4em; }
 

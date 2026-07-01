@@ -38,6 +38,13 @@ final class Event_Extras_Controller extends Rest_Controller_Base {
 			),
 		) );
 
+		// Riordino batch: POST /event-extras/reorder con { order: [id,...] }
+		register_rest_route( self::NAMESPACE, '/event-extras/reorder', array(
+			'methods'             => 'POST',
+			'callback'            => array( $this, 'reorder' ),
+			'permission_callback' => $this->require_capability( 'em_manage_settings' ),
+		) );
+
 		// Pubblico (booking): solo extra attivi, campi essenziali.
 		register_rest_route( self::NAMESPACE, '/event-extras/public', array(
 			'methods'             => 'GET',
@@ -58,9 +65,17 @@ final class Event_Extras_Controller extends Rest_Controller_Base {
 				'description' => $e['description'],
 				'price_cents' => (int) $e['price_cents'],
 				'event_types' => $e['event_types'], // CSV o "all"
+				'info_url'    => isset( $e['info_url'] ) ? (string) $e['info_url'] : '',
 			);
 		}, $this->repo->active() );
 		return em_json_data( $out );
+	}
+
+	public function reorder( \WP_REST_Request $req ): \WP_REST_Response {
+		$body  = json_decode( $req->get_body(), true );
+		$order = is_array( $body['order'] ?? null ) ? array_values( array_map( 'intval', $body['order'] ) ) : array();
+		$this->repo->reorder( $order );
+		return em_json_data( array( 'ok' => true, 'count' => count( $order ) ) );
 	}
 
 	public function create( \WP_REST_Request $req ): \WP_REST_Response {

@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'EM_VERSION', '0.9.0' );
-define( 'EM_DB_VERSION', '4' );
+define( 'EM_DB_VERSION', '5' );
 define( 'EM_PLUGIN_FILE', __FILE__ );
 define( 'EM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
