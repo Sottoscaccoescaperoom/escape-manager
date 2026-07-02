@@ -225,7 +225,8 @@
 	color: #cfcfda; font-weight: 800; font-size: 1.1em;
 	border: 1px solid var(--em-border);
 }
-.emc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.emc-avatar img,
+.emc-avatar video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .emc-room-name { font-size: 1.05em; font-weight: 700; color: var(--em-text); }
 .emc-room-meta { font-size: 0.85em; color: var(--em-muted); margin-top: 2px; }
 .emc-room-meta .emc-dot { color: var(--em-faint); margin: 0 0.15em; }

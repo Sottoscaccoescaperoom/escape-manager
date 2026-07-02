@@ -122,7 +122,20 @@ function difficultyLabel(n) { return n && DIFFICULTY[n] ? DIFFICULTY[n] : null; 
 
 // ── Calendario (Step 0) in stile Escape Navigator ──
 
+/**
+ * §Stanze media 2026-07-02 — l'icona stanza puo' essere immagine o video.
+ * Rileviamo dall'estensione dell'URL: mp4/webm/mov/m4v → video autoplay
+ * muted loop (necessario per l'autoplay su tutti i browser mobile).
+ */
+function isVideoMedia(url) {
+	return typeof url === 'string' && /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}
 function Avatar({ name, img }) {
+	if (img && isVideoMedia(img)) {
+		return html`<div class="emc-avatar">
+			<video src=${img} muted autoplay loop playsinline preload="metadata"></video>
+		</div>`;
+	}
 	return html`<div class="emc-avatar">${img
 		? html`<img src=${img} alt=${name} />`
 		: html`<span>${(name || '?').charAt(0).toUpperCase()}</span>`}</div>`;
