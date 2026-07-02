@@ -22,6 +22,7 @@ final class Settings_Controller extends Rest_Controller_Base {
 		'em_booking_code_prefix',
 		'em_email_from_name',
 		'em_email_from_address',
+		'em_booking_cutoff_minutes',
 	);
 
 	public function register_routes(): void {

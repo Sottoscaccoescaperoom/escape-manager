@@ -223,10 +223,15 @@ final class Availability_Service {
 			return array( 'status' => 'blocked' );
 		}
 
-		// 4) Slot nel passato?
+		// 4) Slot nel passato o troppo a ridosso (anticipo minimo prenotazione)?
+		// §cutoff — `em_booking_cutoff_minutes`: minuti di anticipo richiesti per
+		// prenotare (es. 150 = 2h30). Uno slot entro quella finestra da adesso
+		// risulta "blocked" nel booking pubblico. Default 0 = solo slot passati.
 		try {
-			$now = new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
-			if ( $start_utc < $now ) {
+			$now    = new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
+			$cutoff = (int) em_setting( 'em_booking_cutoff_minutes', 0 );
+			$limit  = $cutoff > 0 ? $now->modify( "+{$cutoff} minutes" ) : $now;
+			if ( $start_utc < $limit ) {
 				return array( 'status' => 'blocked' );
 			}
 		} catch ( \Exception $e ) {}
