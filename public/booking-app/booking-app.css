@@ -157,11 +157,40 @@
 	cursor: pointer;
 	outline: none;
 	transition: background .15s, color .15s;
+	white-space: nowrap;
+	overflow: hidden;
 }
 .emc-day:focus, .emc-day:focus-visible { outline: none; box-shadow: none; }
 .emc-day:hover { background: var(--em-chip); color: var(--em-text); }
-.emc-day .emc-day-wd { font-size: 0.72em; text-transform: lowercase; white-space: nowrap; }
-.emc-day .emc-day-dm { font-size: 1.05em; font-weight: 800; color: var(--em-text); }
+.emc-day .emc-day-wd { font-size: 0.72em; text-transform: capitalize; white-space: nowrap; }
+.emc-day .emc-day-dm { font-size: 1.05em; font-weight: 800; color: var(--em-text); white-space: nowrap; }
+
+/* §Fix 2026-07-02 — Mobile: 7 pulsanti in una riga stretta escono dai
+   contorni. Passiamo a flex scrollabile orizzontalmente + layout
+   inline "Gio 02" per pulsante, cosi' tutto resta dentro il chip. */
+@media (max-width: 640px) {
+	.emc-days {
+		display: flex;
+		grid-auto-flow: unset;
+		gap: 0.35em;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+	.emc-days::-webkit-scrollbar { display: none; }
+	.emc-day {
+		flex: 0 0 auto;
+		flex-direction: row;
+		align-items: baseline;
+		gap: 5px;
+		padding: 0.7em 0.9em;
+		scroll-snap-align: start;
+		min-width: 4.2em;
+	}
+	.emc-day .emc-day-wd { font-size: 0.78em; font-weight: 600; }
+	.emc-day .emc-day-dm { font-size: 1em; }
+}
 .emc-day.is-active {
 	background: var(--em-accent);
 	color: #fff;

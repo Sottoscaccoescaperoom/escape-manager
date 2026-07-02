@@ -85,7 +85,11 @@ function isoAddDays(iso, n) {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function weekdayShort(iso) {
-	return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '').slice(0, 2);
+	// §Fix 2026-07-02 — 3 lettere maiuscole (Gio, Ven, Sab…) per la strip
+	// mobile del calendario. Prima erano 2 lettere lowercase ("gi", "ve").
+	const s = new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+	const t = s.slice(0, 3);
+	return t.charAt(0).toUpperCase() + t.slice(1);
 }
 function dayNum(iso) {
 	return new Date(iso + 'T00:00:00').toLocaleDateString('it-IT', { day: '2-digit' });
@@ -236,7 +240,7 @@ function Step1_Calendar({ onPick }) {
 					<div class="emc-days">
 						${stripDays.map(iso => html`
 							<button key=${iso} class=${'emc-day ' + (iso === selectedDate ? 'is-active' : '') + (isPast(iso) ? ' is-past' : '')} disabled=${isPast(iso)} onClick=${() => onPickDate(iso)}>
-								<span class="emc-day-wd">${weekdayLong(iso)}</span>
+								<span class="emc-day-wd">${weekdayShort(iso)}</span>
 								<span class="emc-day-dm">${dayNum(iso)}</span>
 							</button>`)}
 					</div>
