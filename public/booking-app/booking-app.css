@@ -395,6 +395,22 @@
 	font-size: 0.95em;
 	font-family: inherit;
 	width: 100%;
+	/* §Fix 2026-07-02 — Su Chrome/Safari il campo type=tel veniva
+	   colorato con il "link color" (blu scuro) sull'autodetected phone,
+	   quasi illeggibile su sfondo scuro. Forzo tutti i canali che
+	   sovrascriverebbero il colore. */
+	-webkit-text-fill-color: var(--em-text);
+	color-scheme: dark;
+}
+/* Autofill: Chrome dipinge sfondo giallo + testo blu. Sovrascrivo entrambi. */
+.em-booking-app input:-webkit-autofill,
+.em-booking-app input:-webkit-autofill:hover,
+.em-booking-app input:-webkit-autofill:focus,
+.em-booking-app textarea:-webkit-autofill {
+	-webkit-text-fill-color: var(--em-text);
+	-webkit-box-shadow: 0 0 0 1000px var(--em-panel-2) inset;
+	caret-color: var(--em-text);
+	transition: background-color 5000s ease-in-out 0s;
 }
 .em-booking-app input:focus, .em-booking-app textarea:focus {
 	outline: none; border-color: var(--em-accent);
