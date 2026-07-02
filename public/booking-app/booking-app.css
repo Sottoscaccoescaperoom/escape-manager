@@ -400,18 +400,49 @@
 .em-summary { display: grid; gap: 0.6em; background: var(--em-panel-2); border: 1px solid var(--em-border); border-radius: 12px; padding: 1.2em 1.3em; font-size: 1.1em; line-height: 1.4; }
 .em-summary strong { color: var(--em-muted); font-weight: 600; margin-right: 0.35em; }
 
-/* avviso gift card / QR prima del pagamento */
+/* §Fix 2026-07-02 — Avviso gift card / QR: prima passava inosservato tra
+   gli altri box. Ora piu' evidente: sfondo giallo, bordo pulsante, icona
+   grande a sinistra, pulse leggero per attirare l'occhio. */
 .em-giftnote {
-	margin: 1.2em 0;
-	padding: 1em 1.15em;
-	background: rgba(232,162,61,0.10);
-	border: 1px solid rgba(232,162,61,0.45);
-	border-radius: 12px;
-	color: #f3d9ab;
+	position: relative;
+	margin: 1.4em 0;
+	padding: 1em 1.15em 1em 3.4em;
+	background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0.06));
+	border: 2px solid #fbbf24;
+	border-radius: 14px;
+	color: #fde68a;
 	font-size: 1.02em;
 	line-height: 1.5;
+	box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6);
+	animation: em-gift-pulse 2.4s ease-out 2;
 }
-.em-giftnote strong { color: #ffe9c2; }
+.em-giftnote::before {
+	content: '🎟️';
+	position: absolute;
+	top: 50%;
+	left: 0.85em;
+	transform: translateY(-50%);
+	font-size: 1.7em;
+	line-height: 1;
+	filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.5));
+}
+.em-giftnote > br + strong,
+.em-giftnote strong {
+	color: #fef3c7;
+}
+/* Nascondiamo la vecchia emoji inline nel testo (::before la sostituisce). */
+.em-giftnote {
+	text-indent: -1.4em;
+	padding-left: 3.4em;
+}
+.em-giftnote > * {
+	text-indent: 0;
+}
+@keyframes em-gift-pulse {
+	0%   { box-shadow: 0 0 0 0    rgba(251, 191, 36, 0.55); }
+	70%  { box-shadow: 0 0 0 12px rgba(251, 191, 36, 0);    }
+	100% { box-shadow: 0 0 0 0    rgba(251, 191, 36, 0);    }
+}
 
 .em-promo-row { display: flex; gap: 0.5em; }
 .em-promo-applied { display: flex; align-items: center; gap: 0.5em; color: var(--em-ok); }
@@ -472,17 +503,35 @@
 @keyframes em-lockglow { 0%, 100% { filter: drop-shadow(0 0 0 rgba(255,207,6,0)); } 50% { filter: drop-shadow(0 0 12px rgba(255,207,6,0.6)); } }
 @keyframes em-fadein { to { opacity: 1; } }
 .em-step5 h2 { margin-bottom: 0.6em; }
-/* badge WhatsApp: conferma inviata, ben visibile */
+/* §Fix 2026-07-02 — badge conferma: prima verde WhatsApp (fuori brand),
+   ora giallo Sottoscacco. L'icona WA resta verde per riconoscibilita'. */
 .em-wa {
 	display: inline-flex; align-items: center; gap: 0.6em;
 	margin: 0 auto 0.9em; padding: 0.6em 1.1em 0.6em 0.6em;
-	background: #25D366; color: #06351c; border-radius: 999px;
+	background: #fbbf24; color: #1a1206; border-radius: 999px;
 	font-weight: 800; font-size: 1.02em;
-	box-shadow: 0 6px 18px rgba(37,211,102,0.30);
+	box-shadow: 0 6px 18px rgba(251, 191, 36, 0.35);
+	max-width: 100%;
 }
-.em-wa-ico { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; background: #1ebe57; border-radius: 50%; }
+.em-wa-ico { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; background: #25D366; border-radius: 50%; flex: 0 0 auto; }
 .em-wa-ico svg { width: 20px; height: 20px; display: block; }
-.em-wa-txt strong { color: #042a16; }
+.em-wa-txt { line-height: 1.25; }
+.em-wa-txt strong { color: #1a1206; }
+/* §Fix 2026-07-02 — Step 5 su mobile: contenuto piu' compatto per
+   entrare tutto nello schermo senza scroll iniziale. */
+@media (max-width: 640px) {
+	.em-step5 { padding: 1.2em 0.9em; }
+	.em-step5 h2 { font-size: 1.25em; margin: 0.3em 0 0.4em; }
+	.em-step5-logo { max-width: 130px; margin-bottom: 0.4em; }
+	.em-wa { padding: 0.5em 0.9em 0.5em 0.5em; font-size: 0.92em; }
+	.em-wa-ico { width: 26px; height: 26px; }
+	.em-wa-ico svg { width: 17px; height: 17px; }
+	.em-step5-lead { font-size: 0.98em; margin-bottom: 0.7em; }
+	.em-step5-recap { padding: 0.75em 0.95em; font-size: 0.95em; margin-bottom: 0.9em; }
+	.em-step5-thanks { margin-bottom: 0.9em; }
+	.em-xc-title { font-size: 0.98em; }
+	.em-xc-slogan { font-size: 0.92em; }
+}
 .em-step5-lead { font-size: 1.12em; color: var(--em-text); line-height: 1.55; max-width: 460px; margin: 0 auto 1.1em; }
 .em-step5-recap {
 	display: inline-grid; gap: 0.35em; text-align: left;
@@ -551,6 +600,60 @@
 /* icona emoji via attributo (NON nodo-testo Preact) per evitare la duplicazione a ogni re-render */
 .em-event-ico::before { content: attr(data-ico); }
 .em-field { display: flex; flex-direction: column; gap: 0.3em; margin-top: 1em; color: var(--em-muted); font-size: 0.9em; }
+
+/* §Fix 2026-07-02 — Textarea "note al gioco" piu' evidente e generosa.
+   Prima: rows=4 con placeholder e hint stessa dimensione, sembrava un
+   testo qualunque. Ora: label chiaro, textarea alta 6 righe con
+   evidente bordo giallo tenue quando in focus, placeholder attenuato,
+   hint sotto in font più piccolo/grigio (non si confonde col testo). */
+.em-field-notes {
+	margin-top: 1.4em;
+	padding: 0.8em 1em 1em;
+	background: var(--em-panel-2);
+	border: 1px solid var(--em-border);
+	border-radius: 14px;
+	gap: 0.45em;
+}
+.em-field-notes .em-field-label {
+	font-size: 1em;
+	font-weight: 700;
+	color: var(--em-text);
+}
+.em-field-notes .em-optional {
+	font-weight: 400;
+	color: var(--em-muted);
+	font-size: 0.85em;
+}
+.em-notes-textarea {
+	width: 100%;
+	min-height: 8em;
+	padding: 0.7em 0.85em;
+	background: var(--em-bg);
+	color: var(--em-text);
+	border: 1.5px solid var(--em-border);
+	border-radius: 10px;
+	font: inherit;
+	font-size: 0.95em;
+	line-height: 1.4;
+	resize: vertical;
+	transition: border-color .15s;
+}
+.em-notes-textarea:focus {
+	outline: none;
+	border-color: #fbbf24;
+	box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.12);
+}
+.em-notes-textarea::placeholder {
+	color: var(--em-faint);
+	opacity: 0.6;
+	font-style: italic;
+}
+.em-field-notes .em-field-hint {
+	font-size: 0.78em;
+	color: var(--em-faint);
+	opacity: 0.75;
+	line-height: 1.35;
+}
 .em-addon {
 	display: flex; align-items: flex-start; gap: 0.7em; margin-top: 0.7em;
 	padding: 0.8em 1em; border: 1px solid var(--em-border); border-radius: 12px;

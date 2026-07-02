@@ -162,6 +162,50 @@ function RoomHead({ room }) {
 		</div>`;
 }
 
+/**
+ * §Fix 2026-07-02 — Giornata effettiva con soglia 05:00.
+ *
+ * Il calendario del cliente deve mostrare i turni notturni (00:00-04:59)
+ * come appartenenti al GIORNO PRECEDENTE. Esempio: un turno a 01:00 di
+ * venerdi' 3 luglio deve apparire tra i turni di giovedi' 2 luglio.
+ *
+ * L'API /availability restituisce slot per giorno solare (start_datetime).
+ * Qui riceviamo `nDays+1` giorni: per ogni giorno visibile spostiamo i
+ * suoi slot < 05:00 al giorno precedente e teniamo per il giorno visibile
+ * i suoi slot >= 05:00 + gli slot < 05:00 del giorno successivo.
+ *
+ * `days` = giorni "visibili" richiesti dall'utente (1 in day-view, 7 in week).
+ */
+function mergeNightSlots(rawDays, days) {
+	if (!Array.isArray(rawDays) || rawDays.length === 0) return rawDays || [];
+	const NIGHT_HOUR = 5; // soglia: slot con ora < 5 = giornata precedente
+	const isNight = iso => {
+		// start_datetime formato "YYYY-MM-DD HH:MM:SS" o ISO "YYYY-MM-DDTHH:MM:SS"
+		const m = /T?\s?(\d{2}):/.exec(String(iso).slice(10));
+		if (!m) return false;
+		return parseInt(m[1], 10) < NIGHT_HOUR;
+	};
+	// Costruiamo output per i primi `days` giorni (i visibili).
+	const out = [];
+	for (let i = 0; i < days && i < rawDays.length; i++) {
+		const cur = rawDays[i];
+		const next = rawDays[i + 1];
+		const roomsMerged = (cur.rooms || []).map(room => {
+			// Slot del giorno corrente: teniamo quelli >= 05:00 (i notturni
+			// sarebbero gia' passati, andrebbero al giorno precedente che
+			// noi non stiamo mostrando qui — quindi li perdiamo se e' il
+			// primo giorno, ma nella pratica sono pochi/nessuno).
+			const dayNotNight = (room.slots || []).filter(s => !isNight(s.start));
+			// Slot del giorno dopo, ma solo notturni: appartengono a "cur".
+			const nextSameRoom = next ? (next.rooms || []).find(r => r.room_id === room.room_id) : null;
+			const nightNext = nextSameRoom ? (nextSameRoom.slots || []).filter(s => isNight(s.start)) : [];
+			return { ...room, slots: [...dayNotNight, ...nightNext] };
+		});
+		out.push({ ...cur, rooms: roomsMerged });
+	}
+	return out;
+}
+
 function Step1_Calendar({ onPick }) {
 	const [view, setView] = useState('day');
 	const [selectedDate, setSelectedDate] = useState(isoToday());
@@ -178,11 +222,15 @@ function Step1_Calendar({ onPick }) {
 	useEffect(() => {
 		setLoading(true); setError(null);
 		const qs = new URLSearchParams();
-		if (view === 'day') { qs.set('date', selectedDate); qs.set('days', '1'); }
-		else { qs.set('date', weekStart); qs.set('days', '7'); }
+		// §Fix 2026-07-02 — Giornata effettiva con soglia 05:00: gli slot
+		// 00:00-04:59 del giorno DOPO fanno parte del giorno mostrato.
+		// Fetch 2 giorni consecutivi in vista "day" (7+1 in vista "week")
+		// e filtriamo lato client per merge.
+		if (view === 'day') { qs.set('date', selectedDate); qs.set('days', '2'); }
+		else { qs.set('date', weekStart); qs.set('days', '8'); }
 		if (CONFIG.locationId) qs.set('location_id', CONFIG.locationId);
 		api('GET', '/availability?' + qs.toString())
-			.then(r => setData(r.data || []))
+			.then(r => setData(mergeNightSlots(r.data || [], view === 'day' ? 1 : 7)))
 			.catch(e => setError(e.message))
 			.finally(() => setLoading(false));
 	}, [view, selectedDate, weekStart]);
@@ -445,7 +493,7 @@ function Step2_Participants({ room, onNext, onBack }) {
 			</div>
 			${(reduced > 0 || free > 0) && html`
 				<div class="em-info-box em-info-warn">
-					<strong>* Documento richiesto:</strong> per confermare la tariffa ridotta o l'ingresso gratuito, il giorno del gioco sarà chiesto un documento d'identità dei minori.
+					<strong>* Documenti eventualmente richiesti:</strong> il giorno del gioco <em>potrebbero</em> essere richiesti i documenti d'identità dei minori per confermare la tariffa ridotta o l'ingresso gratuito.
 				</div>`}
 
 			${!valid && html`<p class="em-error">${
@@ -548,8 +596,10 @@ function Step_Event({ players, onNext, onBack }) {
 					})}
 				</div>`}
 
-			<label class="em-field">Qualcosa di importante da segnalarci? (opzionale)
-				<textarea rows="4" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Dediche, esigenze speciali, fobie o paure di chi partecipa al gioco…"></textarea>
+			<label class="em-field em-field-notes">
+				<span class="em-field-label">📝 Qualcosa di importante da segnalarci? <span class="em-optional">(opzionale)</span></span>
+				<textarea class="em-notes-textarea" rows="6" value=${comment} onInput=${e => setComment(e.target.value)} placeholder="Scrivi qui le tue note…"></textarea>
+				<span class="em-field-hint">Es. dediche, esigenze speciali, fobie o paure di chi partecipa al gioco.</span>
 			</label>
 
 			<div class="em-actions">
@@ -684,8 +734,8 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 				</div>`}
 
 			<div class="em-giftnote">
-				🎟️ <strong>Hai una gift card o un QR code valido</strong> (omaggio o sconto)?<br/>
-				Presentalo <strong>alla cassa al momento del pagamento</strong>: l'importo verrà <strong>scalato dal totale</strong> da pagare. Non inserirlo qui: la verifica avviene in sede.
+				<strong>Hai una gift card o un QR code valido?</strong><br/>
+				Presentalo <strong>alla cassa al momento del pagamento</strong>: l'importo verrà <strong>scalato dal totale</strong>. Non serve inserirlo qui — la verifica avviene in sede.
 			</div>
 
 			<h3>Metodo di pagamento</h3>
@@ -793,6 +843,20 @@ function App() {
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState(null);
 	const [lockExpired, setLockExpired] = useState(false);
+
+	// §Fix 2026-07-02 — Al cambio step (mobile in particolare) portiamo la
+	// vista in cima al widget: senza questo, gli utenti si trovavano al form
+	// di compilazione a meta' schermo e dovevano scrollare per vederlo.
+	useEffect(() => {
+		try {
+			const el = document.querySelector('.em-booking-app');
+			if (el && typeof el.scrollIntoView === 'function') {
+				el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			} else {
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		} catch (_) { /* SSR / no-op */ }
+	}, [step]);
 
 	// Resume: se ricarico la pagina con un lock ancora valido, riprendo dallo step Partecipanti.
 	useEffect(() => {
