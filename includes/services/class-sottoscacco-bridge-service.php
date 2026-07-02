@@ -79,6 +79,20 @@ final class Sottoscacco_Bridge_Service {
 		$payload = $this->build_payload( $event, $booking );
 		$this->queue->enqueue( 'sottoscacco', $event, $payload, (int) $booking['id'] );
 		$this->logger->log( 'webhook_enqueued', 'booking', (int) $booking['id'], null, array( 'event' => $event ) );
+
+		// §Fix 2026-07-02 — INVIO ISTANTANEO. WP-cron gira solo quando c'e'
+		// traffico o via cron di sistema esterno; per il booking pubblico il
+		// cliente aspetta il messaggio WhatsApp SUBITO, se arriva dopo 5-15
+		// minuti si preoccupa. Facciamo un tentativo inline: se va bene marca
+		// come "sent" nel record appena creato; se fallisce, lascia in coda
+		// (il cron si occupera' dei retry). Non blocchiamo mai il salvataggio
+		// del booking per un webhook.
+		try {
+			( new Webhook_Dispatcher_Service() )->dispatch_due( 5 );
+		} catch ( \Throwable $e ) {
+			$this->logger->log( 'webhook_dispatch_immediate_error', 'booking', (int) $booking['id'], null,
+				array( 'event' => $event, 'error' => $e->getMessage() ) );
+		}
 	}
 
 	/**
