@@ -341,9 +341,14 @@
 	background: var(--em-chip); color: var(--em-muted); font-size: 0.95em; font-weight: 800;
 	border: 1px solid var(--em-border);
 }
-.em-step.is-active .em-step-num { background: var(--em-accent); color: #fff; border-color: var(--em-accent); }
+/* §Fix 2026-07-02 — Pallini step: da blu/verde a giallo Sottoscacco
+   (brand). Attivo = giallo pieno intenso; completato = giallo con
+   segno di spunta. */
+.em-step.is-active .em-step-num { background: #fbbf24; color: #1a1206; border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.20); }
 .em-step.is-active { color: var(--em-text); }
-.em-step.is-done .em-step-num { background: var(--em-ok); color: #07150f; border-color: var(--em-ok); }
+.em-step.is-done .em-step-num { background: #f59e0b; color: #1a1206; border-color: #f59e0b; }
+.em-step:not(:last-child).is-done::after,
+.em-step:not(:last-child).is-active::after { background: #f59e0b; }
 
 .em-countdown {
 	display: block;
