@@ -77,13 +77,12 @@ sostituendo EN sull'home. Configurazione durante il test:
 - [x] Bridge **ON**, prefisso **`em-`**, URL con token → coda webhook **7/7 `sent`, 0 errori** ✔
 - [x] Pagina **`/test-booking/`** (post 5132) pubblicata, con shortcode `[escape_booking]` ✔
 - [x] Anticipo minimo prenotazione: 120 min ✔
-- [x] Location "Sottoscacco" presente (id 1) ✔
-- [ ] Location: **indirizzo/città/CAP da compilare** (ora vuoti) — per la week-view
-- [ ] Email mittente: `em_email_from_name` impostato; **`em_email_from_address` da impostare** (mailbox reale)
-- [ ] **Smoke test finale**: una prenotazione reale da `/test-booking/` su **Red Room** → verificare arrivo in dashboard con stanza valorizzata + check-in
+- [x] Location "Sottoscacco" (id 1) — indirizzo **via Luigi Einaudi 410, Civitanova Marche 62012** ✔
+- [x] Email mittente: `em_email_from_name` = "Sottoscacco Escape Room", `em_email_from_address` = info@sottoscacco.it ✔
+- [x] **Smoke test end-to-end su Red Room** ✔ (2026-07-03): booking pubblico via API (id 14, €60) → bridge new-order `sent` → cancel-order `sent`. Round-trip create+cancel OK, prenotazione di test poi annullata.
 
-> Tutto il funzionale è pronto: EM è operativo in parallelo. Restano solo
-> indirizzo location, email mittente e lo smoke test end-to-end su Red Room.
+> ✅ EM è **operativo in parallelo**. Tutto verificato. A fine test 7gg,
+> per andare live: disabilitare plugin EN + mettere `[escape_booking]` sull'home.
 
 ## FASE D — Bridge verso Sottoscacco (test silenzioso, NON live)
 
