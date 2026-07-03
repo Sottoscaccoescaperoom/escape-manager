@@ -33,15 +33,42 @@
 - [ ] C5. Impostare **email mittente** (nome + indirizzo) in Impostazioni
 - [ ] C6. (Opzionale) Creare promocodes/voucher reali
 
-### Tabella allineamento slug stanze (CRITICO)
+### Tabella allineamento slug stanze (CRITICO) — verificata 2026-07-03
 | Stanza | Slug EM | Slug Firestore Sottoscacco | OK? |
 |---|---|---|---|
-| | | | ☐ |
-| | | | ☐ |
-| | | | ☐ |
-| | | | ☐ |
+| Biocrisis | `biocrisis` | `biocrisis` | ✅ |
+| Death Row | `death-row` | `death-row` | ✅ |
+| Fumo di Londra | `fumo-di-londra` | `fumo-di-londra` | ✅ |
+| Furto al Museo | `furto-al-museo` | `furto-al-museo` | ✅ |
+| Occhio di Ra | `occhio-di-ra` | `occhio-di-ra` | ✅ |
+| Red Room | `red-room` | `redroom` | ❌ **DA ALLINEARE** |
+| Sottosopra | `sottosopra` | `sottosopra` | ✅ |
+| Un'Eredità Perduta | `un-eredita-perduta` | `un-eredita-perduta` | ✅ |
 
-> Se anche UN solo slug non combacia → il bridge crea prenotazioni "orfane" in Sottoscacco (senza stanza). **Compilare e verificare prima dello switch.**
+> ⚠️ **Red Room disallineata**: cambiare lo slug EM da `red-room` a `redroom`
+> (allinea EM → Firestore, che è la fonte operativa di check-in/lavagna).
+> Se anche UN solo slug non combacia → il bridge crea prenotazioni "orfane"
+> in Sottoscacco (senza stanza). Fonte Firestore: `app/api/admin/seed-rooms`.
+
+---
+
+## VARIANTE ATTIVA — "Parallelo LIVE" (test 7 giorni senza toccare l'home)
+
+Decisione 2026-07-03: EM va reso **operativo davvero** ma in parallelo, NON
+sostituendo EN sull'home. Configurazione durante il test:
+- **EN resta LIVE sull'home** per i clienti veri (invariato).
+- **EM live su `https://sottoscacco.it/test-booking/`** (shortcode `[escape_booking]`).
+- **Bridge ON, prefisso `em-`** (NON `em-staging-`): le prenotazioni fatte da
+  EM arrivano DAVVERO nella dashboard con roomId valorizzato.
+- Prenotazioni manuali "nel sistema nuovo" = crearle da **Prenotazioni → Nuova**
+  (NewBookingFormEM → EM), non dalla vecchia `/bookings/new`.
+- A fine test lo switch è solo: disabilita plugin EN + metti `[escape_booking]`
+  sull'home. (fase E sotto.)
+
+> ⚠️ **RISCHIO doppia prenotazione**: EN ed EM NON condividono la disponibilità.
+> Uno slot preso su EN resta "libero" su EM (e viceversa). Poiché `/test-booking/`
+> non è sull'home, tenerlo per test controllati (staff + clienti selezionati),
+> NON diffonderlo pubblicamente, per evitare doppi booking sullo stesso orario.
 
 ## FASE D — Bridge verso Sottoscacco (test silenzioso, NON live)
 
