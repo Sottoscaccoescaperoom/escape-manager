@@ -70,6 +70,21 @@ sostituendo EN sull'home. Configurazione durante il test:
 > non è sull'home, tenerlo per test controllati (staff + clienti selezionati),
 > NON diffonderlo pubblicamente, per evitare doppi booking sullo stesso orario.
 
+### STATO CONFIGURAZIONE — eseguito via SSH/WP-CLI il 2026-07-03
+- [x] Slug Red Room allineato: `red-room` → **`redroom`** (match Firestore) ✔ verificato
+- [x] 8 stanze presenti, **58 slot orari ciascuna** ✔
+- [x] Prezzi impostati espliciti: adult 30/25/22€, child 15€, soglia celeb 6, sconto 22€, addon 5€ ✔
+- [x] Bridge **ON**, prefisso **`em-`**, URL con token → coda webhook **7/7 `sent`, 0 errori** ✔
+- [x] Pagina **`/test-booking/`** (post 5132) pubblicata, con shortcode `[escape_booking]` ✔
+- [x] Anticipo minimo prenotazione: 120 min ✔
+- [x] Location "Sottoscacco" presente (id 1) ✔
+- [ ] Location: **indirizzo/città/CAP da compilare** (ora vuoti) — per la week-view
+- [ ] Email mittente: `em_email_from_name` impostato; **`em_email_from_address` da impostare** (mailbox reale)
+- [ ] **Smoke test finale**: una prenotazione reale da `/test-booking/` su **Red Room** → verificare arrivo in dashboard con stanza valorizzata + check-in
+
+> Tutto il funzionale è pronto: EM è operativo in parallelo. Restano solo
+> indirizzo location, email mittente e lo smoke test end-to-end su Red Room.
+
 ## FASE D — Bridge verso Sottoscacco (test silenzioso, NON live)
 
 - [ ] D1. CRM → **Bridge Sottoscacco**: URL webhook = `https://app.sottoscacco.it/api/webhooks/escape-navigator`
