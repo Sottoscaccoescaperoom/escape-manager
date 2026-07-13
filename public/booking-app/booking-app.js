@@ -36,10 +36,24 @@ async function api(method, path, body = null) {
 		headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': CONFIG.nonce },
 	};
 	if (body) opts.body = JSON.stringify(body);
-	const res = await fetch(CONFIG.apiBase + path, opts);
+	let res;
+	try {
+		res = await fetch(CONFIG.apiBase + path, opts);
+	} catch (netErr) {
+		// §FIX 2026-07-13 (#4) — fetch fallito PRIMA di ricevere risposta:
+		// rete assente, DNS, CORS o mixed-content. Distinto dal 403/500 sotto.
+		throw { code: 'FETCH_FAILED', message: 'Connessione non riuscita. Controlla la rete e riprova.' };
+	}
 	const data = await res.json().catch(() => ({}));
 	if (!res.ok) {
-		throw data?.error || { code: 'HTTP_' + res.status, message: 'Errore di rete' };
+		// §FIX 2026-07-13 (#4) — Esponi lo stato HTTP reale invece del generico
+		// "Errore di rete": così l'errore a schermo dice subito la causa
+		// (es. 403 = nonce/cache, 404 = route/permalink, 5xx = errore server).
+		if (data?.error) throw data.error;
+		const hint = res.status === 403 ? ' (sessione scaduta: ricarica la pagina)'
+			: res.status === 404 ? ' (endpoint non trovato)'
+			: res.status >= 500 ? ' (errore del server)' : '';
+		throw { code: 'HTTP_' + res.status, message: `Errore ${res.status}${hint}` };
 	}
 	return data;
 }

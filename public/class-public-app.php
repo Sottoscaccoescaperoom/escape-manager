@@ -38,6 +38,16 @@ final class Public_App {
 			return;
 		}
 
+		// §FIX 2026-07-13 (#4) — La pagina di prenotazione NON deve mai essere
+		// full-page cache. Il nonce `wp_rest` è iniettato inline (vedi
+		// render_shortcode): se LiteSpeed serve una copia cache, il nonce si
+		// "congela" e scade. Per un visitatore LOGGATO (staff che testa la
+		// pagina) WordPress core rifiuta allora TUTTE le REST con 403
+		// (rest_cookie_invalid_nonce) e il widget mostra "Errore di rete".
+		// Disabilitiamo la cache quando lo shortcode è presente: la pagina è
+		// dinamica (disponibilità/lock in tempo reale) e non va comunque cachata.
+		$this->disable_page_cache();
+
 		wp_register_script(
 			'em-booking-app',
 			EM_PLUGIN_URL . 'public/booking-app/booking-app.js',
@@ -57,7 +67,29 @@ final class Public_App {
 		wp_enqueue_style( 'em-booking-app' );
 	}
 
+	/**
+	 * Impedisce la full-page cache (LiteSpeed / WP Super Cache / W3TC / generico)
+	 * per la pagina che ospita il widget di prenotazione. Vedi nota in
+	 * enqueue_assets: evita il nonce `wp_rest` scaduto → REST 403 → "Errore di rete".
+	 */
+	private function disable_page_cache(): void {
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		// LiteSpeed Cache: controllo esplicito no-cache (rispettato anche se
+		// impostato durante il rendering della pagina).
+		do_action( 'litespeed_control_set_nocache', 'escape-manager: pagina di prenotazione dinamica' );
+		// WP Super Cache.
+		if ( ! defined( 'DONOTCACHEDB' ) ) {
+			define( 'DONOTCACHEDB', true );
+		}
+	}
+
 	public function render_shortcode( array $atts = array() ): string {
+		// Ridondanza: se il tema non chiama wp_enqueue_scripts prima del
+		// rendering dello shortcode, garantiamo comunque il no-cache qui.
+		$this->disable_page_cache();
+
 		$config = wp_json_encode( array(
 			'apiBase'      => esc_url_raw( rest_url( EM_REST_NAMESPACE ) ),
 			'nonce'        => wp_create_nonce( 'wp_rest' ),
