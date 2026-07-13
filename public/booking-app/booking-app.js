@@ -31,9 +31,16 @@ function getSessionId() {
 }
 
 async function api(method, path, body = null) {
+	// §FIX 2026-07-13 (#4) — NON inviamo X-WP-Nonce. Tutte le route del widget
+	// sono pubbliche (permission_callback __return_true): il nonce non serve.
+	// Inviarlo era anzi dannoso: con la pagina servita da cache LiteSpeed il
+	// nonce `wp_rest` iniettato si "congela"/scade e, per un visitatore LOGGATO,
+	// WordPress core rifiuta OGNI REST con 403 (rest_cookie_invalid_nonce) → il
+	// widget mostrava "Errore di rete". Senza nonce, la richiesta viaggia come
+	// anonima e le route pubbliche rispondono correttamente, cache o non cache.
 	const opts = {
 		method,
-		headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': CONFIG.nonce },
+		headers: { 'Content-Type': 'application/json' },
 	};
 	if (body) opts.body = JSON.stringify(body);
 	let res;
