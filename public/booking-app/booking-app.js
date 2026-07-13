@@ -312,7 +312,8 @@ function Step1_Calendar({ onPick }) {
 					<span class="emc-cal-ico">📅</span>
 					<span class="emc-datepick-label">${pickerLabel(selectedDate)}</span>
 					<span class="emc-caret">▾</span>
-					<input type="date" value=${selectedDate} min=${today} onInput=${e => onPickDate(e.target.value)} />
+					<input type="date" value=${selectedDate} min=${today} onInput=${e => onPickDate(e.target.value)}
+						onClick=${e => { try { e.currentTarget.showPicker && e.currentTarget.showPicker(); } catch (_) {} }} />
 				</label>
 			</div>
 
