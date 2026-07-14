@@ -966,9 +966,9 @@ function RoomEditModal({ room, locations, onClose, onSaved }) {
 						</select>
 					</label>
 				</div>
-				<label class="em-textarea-label">Slogan (frase "trailer" mostrata nel modulo prenotazione)
-					<textarea rows="2" value=${form.teaser || ''} onInput=${e => set('teaser', e.target.value)} placeholder="Es. Un virus letale è stato rilasciato: trovate l'antidoto prima che il contagio vi travolga."></textarea>
-					<small class="em-img-hint">Se lasciato vuoto, il modulo mostra una frase di default per questa stanza.</small>
+				<label class="em-textarea-label">Slogan (micro-frasi che si alternano a fianco del nome nel modulo prenotazione)
+					<textarea rows="3" value=${form.teaser || ''} onInput=${e => set('teaser', e.target.value)} placeholder=${'Una frase per riga, cortissime. Es.:\nIl virus è tra voi\nTrovate l’antidoto\nIl contagio non aspetta'}></textarea>
+					<small class="em-img-hint">Una frase per riga (o separate da "|"): si alternano da sole. Se vuoto, il modulo usa frasi di default per questa stanza.</small>
 				</label>
 				<label class="em-textarea-label">Descrizione <textarea rows="3" value=${form.description || ''} onInput=${e => set('description', e.target.value)}></textarea></label>
 				<label class="em-textarea-label">Info importanti <textarea rows="2" value=${form.important_info || ''} onInput=${e => set('important_info', e.target.value)}></textarea></label>

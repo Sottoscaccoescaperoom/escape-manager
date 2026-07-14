@@ -141,21 +141,43 @@ function rangeLabel(startIso) {
 }
 function difficultyLabel(n) { return n && DIFFICULTY[n] ? DIFFICULTY[n] : null; }
 
-// §SLOGAN 2026-07-14 — Frasi "spot" in stile trailer per ogni stanza: tipo di
-// ambientazione + missione. La chiave è il nome stanza normalizzato (minuscolo,
-// senza accenti/spazi/simboli) così combacia anche con piccole differenze.
+// §SLOGAN 2026-07-14 — Micro-frasi "spot" che si ALTERNANO a fianco del nome
+// stanza (tipo tagline di un trailer): cortissime, incuriosiscono e accennano
+// alla missione. Ogni stanza ha un elenco; a runtime ruotano una alla volta.
+// La chiave è il nome stanza normalizzato (minuscolo, senza accenti/spazi/simboli).
 const ROOM_SLOGANS = {
-	redroom:          'Oltre quella porta, un segreto rosso sangue. Avete 60 minuti per non restarci dentro.',
-	biocrisis:        'Un virus letale è appena stato rilasciato. Trovate l’antidoto prima che il contagio vi travolga.',
-	occhiodira:       'Nel cuore di una piramide dimenticata, l’Occhio di Ra veglia sul tesoro dei faraoni. Osate profanarlo?',
-	deathrow:         'Condannati per un crimine mai commesso. L’esecuzione è all’alba: evadete prima che scocchi l’ora.',
-	furtoalmuseo:     'Il colpo del secolo vi aspetta. Un capolavoro da rubare, mille allarmi da ingannare.',
-	sottosopra:       'Un mondo capovolto vi ha inghiottiti. Ritrovate la via d’uscita prima che l’oscurità trovi voi.',
-	fumodilondra:     'Nella nebbia della vecchia Londra si cela un assassino. Solo il vostro ingegno può smascherarlo.',
-	unereditaperduta: 'Un’eredità dimenticata e un potere antico da risvegliare. La magia, ora, è nelle vostre mani.',
+	redroom:          ['Oltre quella porta, il buio', 'Un segreto rosso sangue', 'Uscirne vivi in 60 minuti'],
+	biocrisis:        ['Il virus è tra voi', 'Trovate l’antidoto', 'Il contagio non aspetta', '60 minuti all’apocalisse'],
+	occhiodira:       ['Il tesoro dei faraoni', 'L’Occhio di Ra vi osserva', 'Fuga dalla piramide'],
+	deathrow:         ['Condannati ingiustamente', 'Evadete prima dell’alba', 'L’esecuzione è vicina'],
+	furtoalmuseo:     ['Il colpo del secolo', 'Rubate il capolavoro', 'Ingannate gli allarmi'],
+	sottosopra:       ['Un mondo capovolto', 'Ritrovate l’uscita', 'L’oscurità vi cerca'],
+	fumodilondra:     ['Nella nebbia, un assassino', 'Smascherate il colpevole', 'Londra trattiene il fiato'],
+	unereditaperduta: ['Un potere antico', 'La magia vi aspetta', 'Reclamate l’eredità'],
 };
 function sloganKey(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); }
-function roomSlogan(name) { return ROOM_SLOGANS[sloganKey(name)] || null; }
+/** Ritorna l'elenco di frasi per una stanza: prima quelle impostate dall'admin
+ *  (campo slogan, una per riga o separate da "|"), poi quelle di default. */
+function roomSlogans(room) {
+	const custom = String(room && room.slogan || '')
+		.split(/\r?\n|\|/).map(s => s.trim()).filter(Boolean);
+	if (custom.length) return custom;
+	return ROOM_SLOGANS[sloganKey(room && room.room_name)] || [];
+}
+
+/** Frase "spot" che si alterna a fianco del nome stanza (stesso colore). */
+function RoomSlogan({ phrases }) {
+	const [i, setI] = useState(0);
+	useEffect(() => {
+		if (!phrases || phrases.length <= 1) return;
+		const t = setInterval(() => setI(x => (x + 1) % phrases.length), 3600);
+		return () => clearInterval(t);
+	}, [phrases && phrases.length]);
+	if (!phrases || !phrases.length) return '';
+	const text = phrases[i % phrases.length];
+	// key=text → rimonta a ogni cambio, facendo scattare l'animazione di fade.
+	return html`<span class="emc-room-slogan" key=${text}>${text}</span>`;
+}
 
 // ── Calendario (Step 0) in stile Escape Navigator ──
 
@@ -200,15 +222,15 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 
 function RoomHead({ room }) {
 	const diff = difficultyLabel(room.difficulty);
-	// §SLOGAN — preferisci lo slogan impostato dall'admin sulla stanza; se vuoto,
-	// usa il testo "spot" di default per quella stanza.
-	const slogan = (room.slogan && String(room.slogan).trim()) || roomSlogan(room.room_name);
+	const phrases = roomSlogans(room); // §SLOGAN — micro-frasi che si alternano
 	return html`
 		<div class="emc-room-head">
 			<${Avatar} name=${room.room_name} img=${room.image_url} />
 			<div>
-				<div class="emc-room-name">${room.room_name}</div>
-				${slogan ? html`<div class="emc-room-slogan">${slogan}</div>` : ''}
+				<div class="emc-room-name-row">
+					<span class="emc-room-name">${room.room_name}</span>
+					<${RoomSlogan} phrases=${phrases} />
+				</div>
 				<div class="emc-room-meta">
 					${room.min_players} - ${room.max_players} persone <span class="emc-dot">·</span> ${room.duration_minutes} min.${diff ? html` <span class="emc-dot">·</span> ${diff}` : ''}
 				</div>
