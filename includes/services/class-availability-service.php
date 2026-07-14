@@ -170,6 +170,10 @@ final class Availability_Service {
 				'min_players'      => (int) $room['min_players'],
 				'max_players'      => (int) $room['max_players'],
 				'difficulty'       => isset( $room['difficulty'] ) && '' !== $room['difficulty'] ? (int) $room['difficulty'] : null,
+				// §SLOGAN 2026-07-14 — Frase "spot" tipo trailer (campo `teaser`),
+				// modificabile in inserimento stanza. Vuoto → il booking-app usa
+				// il testo di default per quella stanza.
+				'slogan'           => isset( $room['teaser'] ) ? (string) $room['teaser'] : null,
 				'image_url'        => $room['image_url'],
 				'price_from_cents' => $this->pricing->calculate( $room_id_int, (int) $room['min_players'] ),
 				'location_name'    => $loc['name'] ?? null,

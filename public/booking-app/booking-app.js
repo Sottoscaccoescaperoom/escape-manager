@@ -141,6 +141,22 @@ function rangeLabel(startIso) {
 }
 function difficultyLabel(n) { return n && DIFFICULTY[n] ? DIFFICULTY[n] : null; }
 
+// §SLOGAN 2026-07-14 — Frasi "spot" in stile trailer per ogni stanza: tipo di
+// ambientazione + missione. La chiave è il nome stanza normalizzato (minuscolo,
+// senza accenti/spazi/simboli) così combacia anche con piccole differenze.
+const ROOM_SLOGANS = {
+	redroom:          'Oltre quella porta, un segreto rosso sangue. Avete 60 minuti per non restarci dentro.',
+	biocrisis:        'Un virus letale è appena stato rilasciato. Trovate l’antidoto prima che il contagio vi travolga.',
+	occhiodira:       'Nel cuore di una piramide dimenticata, l’Occhio di Ra veglia sul tesoro dei faraoni. Osate profanarlo?',
+	deathrow:         'Condannati per un crimine mai commesso. L’esecuzione è all’alba: evadete prima che scocchi l’ora.',
+	furtoalmuseo:     'Il colpo del secolo vi aspetta. Un capolavoro da rubare, mille allarmi da ingannare.',
+	sottosopra:       'Un mondo capovolto vi ha inghiottiti. Ritrovate la via d’uscita prima che l’oscurità trovi voi.',
+	fumodilondra:     'Nella nebbia della vecchia Londra si cela un assassino. Solo il vostro ingegno può smascherarlo.',
+	unereditaperduta: 'Un’eredità dimenticata e un potere antico da risvegliare. La magia, ora, è nelle vostre mani.',
+};
+function sloganKey(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); }
+function roomSlogan(name) { return ROOM_SLOGANS[sloganKey(name)] || null; }
+
 // ── Calendario (Step 0) in stile Escape Navigator ──
 
 /**
@@ -184,11 +200,15 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 
 function RoomHead({ room }) {
 	const diff = difficultyLabel(room.difficulty);
+	// §SLOGAN — preferisci lo slogan impostato dall'admin sulla stanza; se vuoto,
+	// usa il testo "spot" di default per quella stanza.
+	const slogan = (room.slogan && String(room.slogan).trim()) || roomSlogan(room.room_name);
 	return html`
 		<div class="emc-room-head">
 			<${Avatar} name=${room.room_name} img=${room.image_url} />
 			<div>
 				<div class="emc-room-name">${room.room_name}</div>
+				${slogan ? html`<div class="emc-room-slogan">${slogan}</div>` : ''}
 				<div class="emc-room-meta">
 					${room.min_players} - ${room.max_players} persone <span class="emc-dot">·</span> ${room.duration_minutes} min.${diff ? html` <span class="emc-dot">·</span> ${diff}` : ''}
 				</div>
