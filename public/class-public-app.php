@@ -115,6 +115,9 @@ final class Public_App {
 			'lockTtlMin'   => (int) em_setting( 'em_lock_ttl_minutes', 10 ),
 			'requiredFields' => em_setting( 'em_required_fields_public', array() ),
 			'locationId'   => isset( $atts['location_id'] ) ? (int) $atts['location_id'] : null,
+			// §Singola stanza — [escape_booking room="slug"] mostra/preseleziona
+			// solo quella stanza (usato nelle pagine dedicate di ogni stanza).
+			'roomSlug'     => isset( $atts['room'] ) ? sanitize_title( $atts['room'] ) : null,
 			// §Ordinamento stanze — promuove le stanze "deboli" (poche prenotazioni
 			// nel giorno) in cima con un boost pesato, senza seppellire le forti,
 			// ed evidenzia con un badge quelle con tanta disponibilità.

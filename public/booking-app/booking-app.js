@@ -422,8 +422,11 @@ function Step1_Calendar({ onPick }) {
 	};
 	const dayNext = () => { const ns = isoAddDays(stripStart, STRIP); setStripStart(ns); setSelectedDate(ns); };
 
-	const dayRooms = (view === 'day' && data && data[0]) ? orderRoomsWeighted(data[0].rooms, data) : [];
-	const weekRooms = (view === 'week' && data && data[0]) ? orderRoomsWeighted(data[0].rooms, data) : [];
+	// §Singola stanza — se lo shortcode ha room="slug", mostra solo quella stanza.
+	const onlySlug = CONFIG.roomSlug || null;
+	const filterRooms = (arr) => onlySlug ? (arr || []).filter(r => r.room_slug === onlySlug) : (arr || []);
+	const dayRooms = (view === 'day' && data && data[0]) ? filterRooms(orderRoomsWeighted(data[0].rooms, data)) : [];
+	const weekRooms = (view === 'week' && data && data[0]) ? filterRooms(orderRoomsWeighted(data[0].rooms, data)) : [];
 	const activeRoom = weekRooms.find(r => r.room_id === selectedRoomId) || weekRooms[0];
 
 	return html`
