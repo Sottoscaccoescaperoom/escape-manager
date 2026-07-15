@@ -242,12 +242,26 @@ function RoomSlogan({ phrases }) {
 function isVideoMedia(url) {
 	return typeof url === 'string' && /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
 }
-function Avatar({ name, img, promoPct }) {
+function Avatar({ name, img, promoPct, poster }) {
 	// §Promo — quando c'è sconto: cerchio evidenziato attorno all'icona +
 	// bollicina "−X%" in alto a destra, come una notifica.
+	// §Poster 2026-07-15 — se l'icona è un video, mostriamo un FRAME fisso
+	// (poster) finché il video non è pronto: niente icona vuota durante il
+	// caricamento. Quando il video può partire, sostituisce il frame da solo.
+	const letter = (name || '?').charAt(0).toUpperCase();
 	const inner = (img && isVideoMedia(img))
-		? html`<video src=${img} muted autoplay loop playsinline preload="metadata"></video>`
-		: (img ? html`<img src=${img} alt=${name} />` : html`<span>${(name || '?').charAt(0).toUpperCase()}</span>`);
+		// Video: mostriamo subito un placeholder (poster se c'è, altrimenti la
+		// lettera su sfondo). Il video appare con dissolvenza quando è pronto,
+		// così l'icona non è MAI vuota durante il caricamento (video pesanti).
+		? html`
+			${poster
+				? html`<img class="emc-avatar-ph" src=${poster} alt=${name} />`
+				: html`<span class="emc-avatar-ph">${letter}</span>`}
+			<video src=${img} poster=${poster || ''} class=${'emc-avatar-vid' + (poster ? ' has-poster' : '')}
+				muted autoplay loop playsinline preload="metadata"
+				onloadeddata=${e => e.currentTarget.classList.add('is-ready')}
+				onplaying=${e => e.currentTarget.classList.add('is-ready')}></video>`
+		: ((img || poster) ? html`<img src=${img || poster} alt=${name} />` : html`<span>${letter}</span>`);
 	// Wrapper: il cerchio (box-shadow) e la bollicina "−X%" devono poter
 	// "uscire" dall'icona, che ha overflow:hidden per ritagliare il media.
 	return html`<div class=${'emc-avatar-wrap' + (promoPct > 0 ? ' is-promo' : '')}>
@@ -282,7 +296,7 @@ function RoomHead({ room, dayDate }) {
 	const promoPct = roomPromoPercent(room, dayDate);
 	return html`
 		<div class="emc-room-head">
-			<${Avatar} name=${room.room_name} img=${room.image_url} promoPct=${promoPct} />
+			<${Avatar} name=${room.room_name} img=${room.image_url} poster=${room.image_poster} promoPct=${promoPct} />
 			<div>
 				<div class="emc-room-name-row">
 					<span class="emc-room-name">${room.room_name}</span>
@@ -473,7 +487,7 @@ function Step1_Calendar({ onPick }) {
 						<div class="emc-side-rooms">
 							${weekRooms.map(r => html`
 								<button key=${r.room_id} class=${'emc-side-room ' + (activeRoom && r.room_id === activeRoom.room_id ? 'is-active' : '')} onClick=${() => setSelectedRoomId(r.room_id)}>
-									<${Avatar} name=${r.room_name} img=${r.image_url} />
+									<${Avatar} name=${r.room_name} img=${r.image_url} poster=${r.image_poster} />
 									<span>${r.room_name}</span>
 								</button>`)}
 						</div>

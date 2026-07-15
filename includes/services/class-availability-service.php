@@ -175,6 +175,9 @@ final class Availability_Service {
 				// il testo di default per quella stanza.
 				'slogan'           => isset( $room['teaser'] ) ? (string) $room['teaser'] : null,
 				'image_url'        => $room['image_url'],
+				// §Poster 2026-07-15 — immagine "frame" mostrata finché il video
+				// dell'icona non è pronto (evita l'icona vuota durante il caricamento).
+				'image_poster'     => isset( $room['image_poster'] ) ? $room['image_poster'] : null,
 				'price_from_cents' => $this->pricing->calculate( $room_id_int, (int) $room['min_players'] ),
 				'location_name'    => $loc['name'] ?? null,
 				'location_address' => $loc['address'] ?? null,

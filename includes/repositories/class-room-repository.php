@@ -42,6 +42,7 @@ final class Room_Repository extends Base_Repository {
 				'name'             => (string) ( $data['name'] ?? '' ),
 				'slug'             => (string) ( $data['slug'] ?? sanitize_title( $data['name'] ?? '' ) ),
 				'image_url'        => $data['image_url'] ?? null,
+				'image_poster'     => $data['image_poster'] ?? null,
 				'description'      => $data['description'] ?? null,
 				'teaser'           => $data['teaser'] ?? null,
 				'important_info'   => $data['important_info'] ?? null,

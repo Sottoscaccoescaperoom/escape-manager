@@ -59,6 +59,7 @@ final class Database {
 				name VARCHAR(191) NOT NULL,
 				slug VARCHAR(191) NOT NULL,
 				image_url VARCHAR(255) NULL,
+				image_poster VARCHAR(255) NULL,
 				description LONGTEXT NULL,
 				teaser TEXT NULL,
 				important_info TEXT NULL,

@@ -960,7 +960,15 @@ function RoomEditModal({ room, locations, onClose, onSaved }) {
 						</div>
 						<small class="em-img-hint">Formato: <strong>PNG, JPG, WebP o GIF animata</strong> · immagine <strong>quadrata</strong> (consigliato 256×256 px, minimo 128×128) · peso <strong>max ~2 MB</strong> (per le GIF tienile leggere per un caricamento veloce).</small>
 					</label>
-					<label>Attiva
+					<label>Frame di anteprima (poster del video)
+							<div class="em-img-field">
+								<button type="button" class="em-img-btn" onClick=${() => emPickMedia(u => set('image_poster', u))}>📁 Carica / scegli</button>
+								<input value=${form.image_poster || ''} onInput=${e => set('image_poster', e.target.value)} placeholder="Immagine mostrata finché il video carica" />
+								${form.image_poster ? html`<img class="em-img-prev" src=${form.image_poster} alt="anteprima poster" />` : ''}
+							</div>
+							<small class="em-img-hint">Immagine <strong>fissa</strong> (PNG/JPG/WebP quadrata) mostrata <strong>finché il video non è pronto</strong>, così l'icona non resta mai vuota. Se l'icona è già un'immagine/GIF, è facoltativo.</small>
+						</label>
+						<label>Attiva
 						<select value=${form.is_active ? '1' : '0'} onChange=${e => set('is_active', parseInt(e.target.value))}>
 							<option value="1">Sì</option><option value="0">No</option>
 						</select>

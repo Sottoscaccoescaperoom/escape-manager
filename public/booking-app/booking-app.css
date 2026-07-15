@@ -216,6 +216,7 @@
 	margin-bottom: 0.85em;
 }
 .emc-avatar {
+	position: relative;
 	width: 48px; height: 48px;
 	border-radius: 50%;
 	overflow: hidden;
@@ -227,6 +228,21 @@
 }
 .emc-avatar img,
 .emc-avatar video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* §Poster 2026-07-15 — placeholder (poster o lettera) sotto il video, che
+   appare in dissolvenza quando è pronto: icona mai vuota durante il caricamento. */
+.emc-avatar-ph {
+	position: absolute; inset: 0;
+	width: 100%; height: 100%;
+	display: flex; align-items: center; justify-content: center;
+	object-fit: cover;
+	font-weight: 800; font-size: 1.1em; color: #cfcfda;
+}
+.emc-avatar-vid {
+	position: absolute; inset: 0;
+	opacity: 0; transition: opacity 0.45s ease;
+}
+.emc-avatar-vid.is-ready,
+.emc-avatar-vid.has-poster { opacity: 1; }
 /* §Promo — cerchio evidenziato attorno all'icona + bollicina "−X%" (notifica). */
 .emc-avatar-wrap { position: relative; flex: 0 0 auto; display: inline-flex; }
 .emc-avatar-wrap.is-promo .emc-avatar {
