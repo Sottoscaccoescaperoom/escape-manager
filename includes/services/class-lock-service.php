@@ -42,9 +42,12 @@ final class Lock_Service {
 		$ttl_minutes  = max( 1, min( 60, $ttl_minutes ) );
 		$ttl_seconds  = $ttl_minutes * 60;
 
-		// Rate limiting morbido: massimo 1 lock attivo per session.
+		// §Fix 2026-07-15 — L'utente deve poter tornare indietro e scegliere un
+		// ALTRO orario liberamente, senza pop-up "hai già un orario in fase di
+		// prenotazione". Invece di rifiutare, RILASCIAMO l'eventuale lock
+		// precedente della sessione: il lock "si sposta" sul nuovo slot.
 		if ( $this->locks->count_active_for_session( $session_id ) >= 1 ) {
-			return new \WP_Error( 'TOO_MANY_LOCKS', __( 'Hai già un orario in fase di prenotazione. Termina o annulla quello in corso.', 'escape-manager' ), array( 'status' => 429 ) );
+			$this->locks->release_all_for_session( $session_id );
 		}
 
 		// Calcola end_datetime in base a duration_minutes della stanza

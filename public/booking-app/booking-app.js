@@ -242,15 +242,18 @@ function RoomSlogan({ phrases }) {
 function isVideoMedia(url) {
 	return typeof url === 'string' && /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
 }
-function Avatar({ name, img }) {
-	if (img && isVideoMedia(img)) {
-		return html`<div class="emc-avatar">
-			<video src=${img} muted autoplay loop playsinline preload="metadata"></video>
-		</div>`;
-	}
-	return html`<div class="emc-avatar">${img
-		? html`<img src=${img} alt=${name} />`
-		: html`<span>${(name || '?').charAt(0).toUpperCase()}</span>`}</div>`;
+function Avatar({ name, img, promoPct }) {
+	// §Promo — quando c'è sconto: cerchio evidenziato attorno all'icona +
+	// bollicina "−X%" in alto a destra, come una notifica.
+	const inner = (img && isVideoMedia(img))
+		? html`<video src=${img} muted autoplay loop playsinline preload="metadata"></video>`
+		: (img ? html`<img src=${img} alt=${name} />` : html`<span>${(name || '?').charAt(0).toUpperCase()}</span>`);
+	// Wrapper: il cerchio (box-shadow) e la bollicina "−X%" devono poter
+	// "uscire" dall'icona, che ha overflow:hidden per ritagliare il media.
+	return html`<div class=${'emc-avatar-wrap' + (promoPct > 0 ? ' is-promo' : '')}>
+		<div class="emc-avatar">${inner}</div>
+		${promoPct > 0 ? html`<span class="emc-avatar-promo" title="Sconto attivo su questa stanza nel periodo">−${promoPct}%</span>` : ''}
+	</div>`;
 }
 
 function SlotChip({ room, slot, dayDate, onPick }) {
@@ -279,12 +282,11 @@ function RoomHead({ room, dayDate }) {
 	const promoPct = roomPromoPercent(room, dayDate);
 	return html`
 		<div class="emc-room-head">
-			<${Avatar} name=${room.room_name} img=${room.image_url} />
+			<${Avatar} name=${room.room_name} img=${room.image_url} promoPct=${promoPct} />
 			<div>
 				<div class="emc-room-name-row">
 					<span class="emc-room-name">${room.room_name}</span>
 					<${RoomSlogan} phrases=${phrases} />
-					${promoPct > 0 ? html`<span class="emc-room-promo" title="Sconto attivo su questa stanza nel periodo">🔥 −${promoPct}%</span>` : ''}
 					${roomHasHighAvailability(room) ? html`<span class="emc-room-badge" title="Molti orari ancora liberi">✨ Disponibilità immediata</span>` : ''}
 				</div>
 				<div class="emc-room-meta">
@@ -607,7 +609,7 @@ function Step2_Participants({ room, onNext, onBack }) {
 	const [reduced, setReduced] = useState(0);
 	const [free, setFree] = useState(0);
 	const players = adults + reduced + free;
-	const paying = adults + reduced;                 // adulti + ragazzi (7-12)
+	const paying = adults + reduced;                 // adulti + ragazzi (7-10)
 	const inRange = players >= room.min_players && players <= room.max_players;
 	const kidsOk = paying >= 1 && paying >= free;    // i bambini 0-6 non possono essere la maggioranza
 	const valid = inRange && kidsOk;
@@ -617,12 +619,12 @@ function Step2_Participants({ room, onNext, onBack }) {
 			<h2>Quanti siete?</h2>
 			<p class="em-muted-p">Stanza <strong>${room.room_name}</strong> · ${room.min_players}-${room.max_players} giocatori</p>
 
-			${Counter({ label: 'Adulti', hint: '13+ anni · tariffa piena', value: adults, set: setAdults })}
-			${Counter({ label: 'Ragazzi *', hint: '7-12 anni · ridotto €15', value: reduced, set: setReduced })}
+			${Counter({ label: 'Adulti', hint: '11+ anni · tariffa piena', value: adults, set: setAdults })}
+			${Counter({ label: 'Ragazzi *', hint: '7-10 anni · ridotto €15', value: reduced, set: setReduced })}
 			${Counter({ label: 'Bambini *', hint: '0-6 anni · gratis', value: free, set: setFree })}
 
 			<div class="em-info-box">
-				ℹ️ I bambini <strong>0-6 anni</strong> entrano <strong>gratis</strong>; i ragazzi <strong>7-12</strong> pagano un ridotto di <strong>€15</strong>; dai <strong>13 anni</strong> tariffa piena. Il totale esatto lo vedi nel riepilogo.
+				ℹ️ I bambini <strong>0-6 anni</strong> entrano <strong>gratis</strong>; i ragazzi <strong>7-10</strong> pagano un ridotto di <strong>€15</strong>; dagli <strong>11 anni</strong> tariffa piena. Il totale esatto lo vedi nel riepilogo.
 			</div>
 			${(reduced > 0 || free > 0) && html`
 				<div class="em-info-box em-info-warn">
@@ -632,7 +634,7 @@ function Step2_Participants({ room, onNext, onBack }) {
 			${!valid && html`<p class="em-error">${
 				!kidsOk
 					? (paying < 1
-						? 'Serve almeno un adulto o un ragazzo (7-12): non si può giocare solo con bambini 0-6 anni.'
+						? 'Serve almeno un adulto o un ragazzo (7-10): non si può giocare solo con bambini 0-6 anni.'
 						: `I bambini 0-6 anni non possono essere la maggioranza: servono almeno ${free} tra adulti e ragazzi.`)
 					: `Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.`
 			}</p>`}
@@ -837,7 +839,7 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 	const playersLabel = () => {
 		const p = [];
 		if (participants.adults) p.push(participants.adults + ' adulti');
-		if (participants.children_reduced) p.push(participants.children_reduced + ' ragazzi (7-12)');
+		if (participants.children_reduced) p.push(participants.children_reduced + ' ragazzi (7-10)');
 		if (participants.children_free) p.push(participants.children_free + ' bimbi (0-6)');
 		return p.join(' + ');
 	};
@@ -1042,8 +1044,13 @@ function App() {
 			setStep(1);
 			try { localStorage.setItem(LS_ACTIVE_LOCK, JSON.stringify({ lock: result.data, room, slot, savedAt: Date.now() })); } catch (_) {}
 		} catch (e) {
-			setError(e.message || 'Errore nella prenotazione dello slot');
-			alert(e.message || 'Slot non più disponibile, riprova');
+			// §Fix 2026-07-15 — NIENTE alert popup: l'utente deve poter tornare
+			// indietro e riprovare quante volte vuole senza pop-up bloccanti.
+			// Il lock precedente viene già rilasciato a inizio pickSlot, quindi
+			// nel flusso "indietro e riprova" non si arriva qui. Per un eventuale
+			// slot davvero occupato mostriamo solo un messaggio inline (no popup).
+			console.warn('[booking] slot pick error:', e && e.message);
+			setError(e.message || 'Slot non più disponibile, riprova');
 		}
 	}, []);
 

@@ -84,6 +84,19 @@ final class Lock_Repository extends Base_Repository {
 		);
 	}
 
+	/**
+	 * §Fix 2026-07-15 — Rilascia TUTTI i lock di una sessione. Usato quando
+	 * l'utente sceglie un nuovo orario dopo essere tornato indietro: il lock
+	 * precedente viene sostituito, invece di rifiutare la nuova scelta.
+	 */
+	public function release_all_for_session( string $session_id ): int {
+		return (int) $this->wpdb->delete(
+			$this->table,
+			array( 'session_id' => $session_id ),
+			array( '%s' )
+		);
+	}
+
 	public function find_active( int $lock_id ): ?array {
 		$row = $this->wpdb->get_row(
 			$this->wpdb->prepare(
