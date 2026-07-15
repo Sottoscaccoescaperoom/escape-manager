@@ -145,6 +145,27 @@ final class Sottoscacco_Bridge_Service {
 			);
 		}
 
+		// §Promo periodo 2026-07-15 — se il turno rientra nella promo (stanza + data),
+		// mandiamo la percentuale al gestionale, che la mostra e la applica al
+		// check-in in reception (pagamento in sede). Così lo sconto "arriva alla cassa".
+		$game_date = '';
+		try {
+			$game_date = ( new \DateTimeImmutable( $booking['start_datetime'], new \DateTimeZone( 'UTC' ) ) )
+				->setTimezone( new \DateTimeZone( 'Europe/Rome' ) )->format( 'Y-m-d' );
+		} catch ( \Exception $e ) {}
+		$promo_pct = 0;
+		if ( em_setting( 'em_promo_enabled', false ) ) {
+			$pct   = max( 0, min( 100, (int) em_setting( 'em_promo_percent', 0 ) ) );
+			$from  = (string) em_setting( 'em_promo_from', '' );
+			$to    = (string) em_setting( 'em_promo_to', '' );
+			$rooms = array_map( 'intval', (array) em_setting( 'em_promo_rooms', array() ) );
+			if ( $pct > 0 && $from && $to && $game_date && $game_date >= $from && $game_date <= $to
+				&& in_array( (int) $booking['room_id'], $rooms, true ) ) {
+				$promo_pct = $pct;
+			}
+		}
+		$payload['data']['promoPercent'] = $promo_pct;
+
 		return $payload;
 	}
 
