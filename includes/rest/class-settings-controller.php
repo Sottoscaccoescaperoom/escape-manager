@@ -29,6 +29,7 @@ final class Settings_Controller extends Rest_Controller_Base {
 		'em_promo_from',
 		'em_promo_to',
 		'em_promo_rooms',
+		'em_min_booking_cents',
 	);
 
 	public function register_routes(): void {

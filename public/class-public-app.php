@@ -129,6 +129,14 @@ final class Public_App {
 				'to'      => (string) em_setting( 'em_promo_to', '' ),
 				'rooms'   => array_map( 'intval', (array) em_setting( 'em_promo_rooms', array() ) ),
 			),
+			// §Minimo prenotazione — prezzi per validare il minimo lato client (in centesimi).
+			'pricing' => array(
+				'adult2'       => (int) em_setting( 'em_price_adult_2', 3000 ),
+				'adult3'       => (int) em_setting( 'em_price_adult_3', 2500 ),
+				'adult4plus'   => (int) em_setting( 'em_price_adult_4plus', 2200 ),
+				'childReduced' => (int) em_setting( 'em_price_child_reduced', 1500 ),
+				'minCents'     => (int) em_setting( 'em_min_booking_cents', 6000 ),
+			),
 		) );
 
 		ob_start();

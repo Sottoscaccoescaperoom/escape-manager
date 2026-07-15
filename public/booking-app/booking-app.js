@@ -290,6 +290,11 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 		</button>`;
 }
 
+// §Meta icone 2026-07-15 — piccole icone gialle per persone/durata/difficoltà.
+const ICON_PEOPLE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+const ICON_CLOCK  = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+const ICON_BARS   = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="9"/><line x1="18" y1="20" x2="18" y2="4"/></svg>`;
+
 function RoomHead({ room, dayDate }) {
 	const diff = difficultyLabel(room.difficulty);
 	const phrases = roomSlogans(room); // §SLOGAN — micro-frasi che si alternano
@@ -304,7 +309,10 @@ function RoomHead({ room, dayDate }) {
 					${roomHasHighAvailability(room) ? html`<span class="emc-room-badge" title="Molti orari ancora liberi">✨ Disponibilità immediata</span>` : ''}
 				</div>
 				<div class="emc-room-meta">
-					${room.min_players} - ${room.max_players} persone <span class="emc-dot">·</span> ${room.duration_minutes} min.${diff ? html` <span class="emc-dot">·</span> ${diff}` : ''}
+					<span class="emc-meta-item">${ICON_PEOPLE} ${room.min_players} - ${room.max_players} persone</span>
+					<span class="emc-meta-sep"></span>
+					<span class="emc-meta-item">${ICON_CLOCK} ${room.duration_minutes} min.</span>
+					${diff ? html`<span class="emc-meta-sep"></span><span class="emc-meta-item">${ICON_BARS} ${diff}</span>` : ''}
 				</div>
 			</div>
 		</div>`;
@@ -626,7 +634,17 @@ function Step2_Participants({ room, onNext, onBack }) {
 	const paying = adults + reduced;                 // adulti + ragazzi (7-10)
 	const inRange = players >= room.min_players && players <= room.max_players;
 	const kidsOk = paying >= 1 && paying >= free;    // i bambini 0-6 non possono essere la maggioranza
-	const valid = inRange && kidsOk;
+	// §Minimo €60 — con almeno un adulto sotto il minimo si arrotonda; con soli
+	// ragazzi/bimbi sotto il minimo si BLOCCA e si spiega come raggiungerlo.
+	const P = CONFIG.pricing || {};
+	const priceForGroup = (g) => g >= 4 ? (P.adult4plus || 2200) : g === 3 ? (P.adult3 || 2500) : g === 2 ? (P.adult2 || 3000) : (P.adult4plus || 2200);
+	const subtotalCents = adults * priceForGroup(paying) + reduced * (P.childReduced || 1500);
+	const minCents = P.minCents || 6000;
+	const minEur = Math.round(minCents / 100);
+	const reducedNeeded = Math.ceil(minCents / (P.childReduced || 1500));
+	const belowMin = subtotalCents > 0 && subtotalCents < minCents && adults < 1;
+	const minWillApply = subtotalCents > 0 && subtotalCents < minCents && adults >= 1;
+	const valid = inRange && kidsOk && !belowMin;
 
 	return html`
 		<div class="em-step2">
@@ -645,12 +663,15 @@ function Step2_Participants({ room, onNext, onBack }) {
 					<strong>* Documenti eventualmente richiesti:</strong> il giorno del gioco <em>potrebbero</em> essere richiesti i documenti d'identità dei minori per confermare la tariffa ridotta o l'ingresso gratuito.
 				</div>`}
 
+			${minWillApply && html`<p class="em-info-box">💡 Con questo gruppo si applica il <strong>minimo di €${minEur}</strong> a prenotazione. Il totale esatto lo vedi nel riepilogo.</p>`}
 			${!valid && html`<p class="em-error">${
-				!kidsOk
-					? (paying < 1
-						? 'Serve almeno un adulto o un ragazzo (7-10): non si può giocare solo con bambini 0-6 anni.'
-						: `I bambini 0-6 anni non possono essere la maggioranza: servono almeno ${free} tra adulti e ragazzi.`)
-					: `Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.`
+				belowMin
+					? `Per prenotare serve un minimo di €${minEur}: aggiungi almeno un adulto, oppure porta i ragazzi ridotti (7-10) ad almeno ${reducedNeeded}.`
+					: !kidsOk
+						? (paying < 1
+							? 'Serve almeno un adulto o un ragazzo (7-10): non si può giocare solo con bambini 0-6 anni.'
+							: `I bambini 0-6 anni non possono essere la maggioranza: servono almeno ${free} tra adulti e ragazzi.`)
+						: `Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.`
 			}</p>`}
 
 			<div class="em-actions">

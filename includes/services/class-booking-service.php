@@ -94,6 +94,16 @@ final class Booking_Service {
 			'game_date'        => (string) ( $payload['game_date'] ?? '' ),
 			'start_datetime'   => (string) $lock['start_datetime'],
 		) );
+		// §Minimo prenotazione — con soli ridotti/bimbi sotto il minimo non si può
+		// confermare (con un adulto il minimo è arrotondato in quote_event).
+		if ( ! empty( $pricing['below_minimum'] ) ) {
+			$min_eur = number_format( ( (int) $pricing['min_booking_cents'] ) / 100, 0 );
+			return new \WP_Error(
+				'BELOW_MINIMUM',
+				sprintf( __( 'Per prenotare serve un minimo di %s€: aggiungi almeno un adulto oppure aumenta i ragazzi.', 'escape-manager' ), $min_eur ),
+				array( 'status' => 422 )
+			);
+		}
 		$total_amount = $pricing['total_cents'];
 		$extras_json  = ! empty( $pricing['extras'] ) ? wp_json_encode( $pricing['extras'] ) : null;
 		$method       = (string) ( $payload['payment_method'] ?? 'on_site' );

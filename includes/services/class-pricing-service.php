@@ -52,6 +52,22 @@ final class Pricing_Service {
 		$child_reduced  = (int) em_setting( 'em_price_child_reduced', 1500 );
 		$subtotal       = $adults * $ppa + $reduced * $child_reduced;
 
+		// §Minimo prenotazione 2026-07-15 — qualunque combinazione deve valere
+		// almeno il minimo (default 60€). Con almeno un ADULTO si arrotonda al
+		// minimo; con SOLI ridotti/bimbi sotto al minimo si BLOCCA (below_minimum),
+		// e il client chiede di aggiungere un adulto o arrivare al minimo naturale.
+		$min_cents      = (int) em_setting( 'em_min_booking_cents', 6000 );
+		$below_minimum  = false;
+		$min_applied    = false;
+		if ( $min_cents > 0 && $subtotal > 0 && $subtotal < $min_cents ) {
+			if ( $adults >= 1 ) {
+				$subtotal    = $min_cents;
+				$min_applied = true;
+			} else {
+				$below_minimum = true;
+			}
+		}
+
 		// Celebrazione: se i giocatori totali ≥ soglia, una persona non paga.
 		$threshold      = (int) em_setting( 'em_celebration_threshold', 6 );
 		$celeb_discount = (int) em_setting( 'em_celebration_discount', 2200 );
@@ -140,6 +156,9 @@ final class Pricing_Service {
 			'extras'              => $extras_out,
 			'code_discount_cents' => $code_discount,
 			'total_cents'         => $total,
+			'min_booking_cents'   => $min_cents,
+			'min_charge_applied'  => $min_applied,
+			'below_minimum'       => $below_minimum,
 		), $out );
 	}
 

@@ -12,6 +12,7 @@
 	--em-faint: #6b6b76;
 	--em-accent: #2f6df6;
 	--em-accent-hover: #3f7bff;
+	--em-gold: #eab308;
 	--em-ok: #34d399;
 	--em-danger: #f87171;
 
@@ -245,25 +246,36 @@
 .emc-avatar-vid.has-poster { opacity: 1; }
 /* §Promo — cerchio evidenziato attorno all'icona + bollicina "−X%" (notifica). */
 .emc-avatar-wrap { position: relative; flex: 0 0 auto; display: inline-flex; }
+/* Cerchio GIALLO Sottoscacco attorno all'icona, con pulsazione, quando c'è promo. */
 .emc-avatar-wrap.is-promo .emc-avatar {
-	box-shadow: 0 0 0 3px #ef4444, 0 0 0 5px rgba(239, 68, 68, 0.30);
-	border-color: #ef4444;
+	border-color: var(--em-gold);
+	animation: emc-ring-pulse 1.8s ease-in-out infinite;
 }
+@keyframes emc-ring-pulse {
+	0%, 100% { box-shadow: 0 0 0 3px var(--em-gold), 0 0 0 4px rgba(234, 179, 8, 0.40); }
+	50%      { box-shadow: 0 0 0 3px var(--em-gold), 0 0 0 10px rgba(234, 179, 8, 0.0); }
+}
+/* Bollicina "−X%" gialla in alto a SINISTRA (come una notifica). */
 .emc-avatar-promo {
 	position: absolute;
-	top: -7px; right: -9px;
+	top: -7px; left: -9px;
 	min-width: 20px; height: 20px;
-	padding: 0 5px;
+	padding: 0 6px;
 	display: inline-flex; align-items: center; justify-content: center;
 	font-size: 0.66rem; font-weight: 800; line-height: 1;
-	color: #fff;
-	background: linear-gradient(135deg, #f97316, #ef4444);
-	border: 2px solid var(--em-card, #16161c);
+	color: #1a1a1a;
+	background: var(--em-gold);
+	border: 2px solid var(--em-panel);
 	border-radius: 999px;
-	box-shadow: 0 2px 6px rgba(239, 68, 68, 0.45);
+	box-shadow: 0 2px 6px rgba(234, 179, 8, 0.45);
 	white-space: nowrap;
 	z-index: 2;
 }
+/* Meta stanza con piccole icone gialle (persone · durata · difficoltà). */
+.emc-room-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5em; }
+.emc-meta-item { display: inline-flex; align-items: center; gap: 0.35em; }
+.emc-meta-item svg { width: 15px; height: 15px; color: var(--em-gold); flex: 0 0 auto; }
+.emc-meta-sep { width: 1px; height: 14px; background: var(--em-border); display: inline-block; }
 .emc-room-name { font-size: 1.05em; font-weight: 700; color: var(--em-text); }
 /* §SLOGAN — nome + frase "spot" sulla STESSA riga */
 .emc-room-name-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5em; }
