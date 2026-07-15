@@ -135,6 +135,45 @@ function slotMinutes(slot) {
 	return mins;
 }
 function sortSlots(slots) { return Array.isArray(slots) ? slots.slice().sort((a, b) => slotMinutes(a) - slotMinutes(b)) : []; }
+
+// ── §Ordinamento stanze deboli (toggle em_promote_weak_rooms) ──────────────
+// Disponibilità libera di una stanza sommata su tutti i giorni forniti.
+function roomFreeStats(days, roomId) {
+	let free = 0, total = 0;
+	for (const day of (Array.isArray(days) ? days : [])) {
+		const r = (day.rooms || []).find(x => x.room_id === roomId);
+		if (!r) continue;
+		const slots = r.slots || [];
+		total += slots.length;
+		free += slots.filter(s => s && s.status === 'available').length;
+	}
+	return { free, total, ratio: total ? free / total : 0 };
+}
+// Ordinamento IBRIDO pesato: parte dall'ordine editoriale (baseRooms) e "tira
+// su" le stanze con più disponibilità libera, SENZA seppellire le forti (il
+// boost vale poche posizioni). Le stanze senza slot liberi vanno in fondo
+// (non prenotabili quel giorno). Se il toggle è off, ordine invariato.
+function orderRoomsWeighted(baseRooms, days) {
+	if (!CONFIG.promoteWeakRooms || !Array.isArray(baseRooms) || baseRooms.length < 2) return baseRooms || [];
+	const BOOST = 2.5; // posizioni max guadagnabili da una stanza tutta libera
+	return baseRooms
+		.map((room, baseIndex) => {
+			const { free, ratio } = roomFreeStats(days, room.room_id);
+			const score = free === 0 ? baseIndex + 1000 : baseIndex - BOOST * ratio;
+			return { room, baseIndex, score };
+		})
+		.sort((a, b) => (a.score - b.score) || (a.baseIndex - b.baseIndex))
+		.map(x => x.room);
+}
+// Badge "molta disponibilità": attivo solo col toggle, stanza prevalentemente
+// libera nel giorno ma con almeno uno slot prenotabile.
+function roomHasHighAvailability(room) {
+	if (!CONFIG.promoteWeakRooms) return false;
+	const slots = (room && room.slots) || [];
+	const total = slots.length;
+	const free = slots.filter(s => s && s.status === 'available').length;
+	return free > 0 && total >= 3 && (free / total) >= 0.7;
+}
 function rangeLabel(startIso) {
 	const end = isoAddDays(startIso, 6);
 	return dayNum(startIso) + ' ' + monthCap(startIso) + ' — ' + dayNum(end) + ' ' + monthCap(end);
@@ -230,6 +269,7 @@ function RoomHead({ room }) {
 				<div class="emc-room-name-row">
 					<span class="emc-room-name">${room.room_name}</span>
 					<${RoomSlogan} phrases=${phrases} />
+					${roomHasHighAvailability(room) ? html`<span class="emc-room-badge" title="Molti orari ancora liberi">✨ Disponibilità immediata</span>` : ''}
 				</div>
 				<div class="emc-room-meta">
 					${room.min_players} - ${room.max_players} persone <span class="emc-dot">·</span> ${room.duration_minutes} min.${diff ? html` <span class="emc-dot">·</span> ${diff}` : ''}
@@ -342,8 +382,8 @@ function Step1_Calendar({ onPick }) {
 	};
 	const dayNext = () => { const ns = isoAddDays(stripStart, STRIP); setStripStart(ns); setSelectedDate(ns); };
 
-	const dayRooms = (view === 'day' && data && data[0]) ? data[0].rooms : [];
-	const weekRooms = (view === 'week' && data && data[0]) ? data[0].rooms : [];
+	const dayRooms = (view === 'day' && data && data[0]) ? orderRoomsWeighted(data[0].rooms, data) : [];
+	const weekRooms = (view === 'week' && data && data[0]) ? orderRoomsWeighted(data[0].rooms, data) : [];
 	const activeRoom = weekRooms.find(r => r.room_id === selectedRoomId) || weekRooms[0];
 
 	return html`

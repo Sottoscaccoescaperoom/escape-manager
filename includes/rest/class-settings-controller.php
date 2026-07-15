@@ -23,6 +23,7 @@ final class Settings_Controller extends Rest_Controller_Base {
 		'em_email_from_name',
 		'em_email_from_address',
 		'em_booking_cutoff_minutes',
+		'em_promote_weak_rooms',
 	);
 
 	public function register_routes(): void {

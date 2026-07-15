@@ -1223,6 +1223,15 @@ function SettingsPage() {
 				<tr><th>Timeout inattività (min)</th><td><input type="number" value=${data.em_idle_timeout_minutes || 15} onInput=${e => set('em_idle_timeout_minutes', parseInt(e.target.value))} /></td></tr>
 				<tr><th>Prefisso codice booking</th><td><input value=${data.em_booking_code_prefix || 'EM'} onInput=${e => set('em_booking_code_prefix', e.target.value)} /></td></tr>
 			</table>
+			<h2>Booking pubblico</h2>
+			<table class="form-table">
+				<tr>
+					<th>Promuovi stanze deboli</th>
+					<td>
+						<label><input type="checkbox" checked=${!!data.em_promote_weak_rooms} onChange=${e => set('em_promote_weak_rooms', e.target.checked ? 1 : 0)} /> Mostra più in alto le stanze con poche prenotazioni nel giorno (boost pesato, senza seppellire le più richieste) ed evidenziale con un badge "Disponibilità immediata".</label>
+					</td>
+				</tr>
+			</table>
 			<h2>Email</h2>
 			<table class="form-table">
 				<tr><th>Nome mittente</th><td><input value=${data.em_email_from_name || ''} onInput=${e => set('em_email_from_name', e.target.value)} /></td></tr>
