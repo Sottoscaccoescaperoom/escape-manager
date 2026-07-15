@@ -246,28 +246,28 @@
 .emc-avatar-vid.has-poster { opacity: 1; }
 /* §Promo — cerchio evidenziato attorno all'icona + bollicina "−X%" (notifica). */
 .emc-avatar-wrap { position: relative; flex: 0 0 auto; display: inline-flex; }
-/* Cerchio GIALLO Sottoscacco attorno all'icona, con pulsazione, quando c'è promo. */
+/* Cerchio GIALLO Sottoscacco (SOTTILE) attorno all'icona, con lieve pulsazione. */
 .emc-avatar-wrap.is-promo .emc-avatar {
 	border-color: var(--em-gold);
-	animation: emc-ring-pulse 1.8s ease-in-out infinite;
+	animation: emc-ring-pulse 2s ease-in-out infinite;
 }
 @keyframes emc-ring-pulse {
-	0%, 100% { box-shadow: 0 0 0 3px var(--em-gold), 0 0 0 4px rgba(234, 179, 8, 0.40); }
-	50%      { box-shadow: 0 0 0 3px var(--em-gold), 0 0 0 10px rgba(234, 179, 8, 0.0); }
+	0%, 100% { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 3px rgba(234, 179, 8, 0.28); }
+	50%      { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 6px rgba(234, 179, 8, 0.0); }
 }
-/* Bollicina "−X%" gialla in alto a SINISTRA (come una notifica). */
+/* Bollicina "−X%" gialla, piccola e discreta, in alto a SINISTRA. */
 .emc-avatar-promo {
 	position: absolute;
-	top: -7px; left: -9px;
-	min-width: 20px; height: 20px;
-	padding: 0 6px;
+	top: -4px; left: -5px;
+	height: 16px;
+	padding: 0 5px;
 	display: inline-flex; align-items: center; justify-content: center;
-	font-size: 0.66rem; font-weight: 800; line-height: 1;
+	font-size: 0.56rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1;
 	color: #1a1a1a;
 	background: var(--em-gold);
-	border: 2px solid var(--em-panel);
+	border: 1.5px solid var(--em-panel);
 	border-radius: 999px;
-	box-shadow: 0 2px 6px rgba(234, 179, 8, 0.45);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 	white-space: nowrap;
 	z-index: 2;
 }
