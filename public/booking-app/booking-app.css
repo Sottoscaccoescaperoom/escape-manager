@@ -246,30 +246,37 @@
 .emc-avatar-vid.has-poster { opacity: 1; }
 /* §Promo — cerchio evidenziato attorno all'icona + bollicina "−X%" (notifica). */
 .emc-avatar-wrap { position: relative; flex: 0 0 auto; display: inline-flex; }
-/* Cerchio GIALLO Sottoscacco (SOTTILE) attorno all'icona, con lieve pulsazione. */
+/* Cerchio GIALLO Sottoscacco (sottile) attorno all'icona, con pulsazione MARCATA. */
 .emc-avatar-wrap.is-promo .emc-avatar {
 	border-color: var(--em-gold);
-	animation: emc-ring-pulse 2s ease-in-out infinite;
+	animation: emc-ring-pulse 1.4s ease-in-out infinite;
 }
 @keyframes emc-ring-pulse {
-	0%, 100% { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 3px rgba(234, 179, 8, 0.28); }
-	50%      { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 6px rgba(234, 179, 8, 0.0); }
+	0%   { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 3px rgba(234, 179, 8, 0.55); }
+	70%  { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 12px rgba(234, 179, 8, 0.0); }
+	100% { box-shadow: 0 0 0 2px var(--em-gold), 0 0 0 12px rgba(234, 179, 8, 0.0); }
 }
-/* Bollicina "−X%" gialla, piccola e discreta, in alto a SINISTRA. */
+/* Bollicina "−X%" dorata, curata, in alto a SINISTRA — con leggera pulsazione. */
 .emc-avatar-promo {
 	position: absolute;
-	top: -4px; left: -5px;
-	height: 16px;
-	padding: 0 5px;
+	top: -5px; left: -7px;
+	height: 19px;
+	padding: 0 7px;
 	display: inline-flex; align-items: center; justify-content: center;
-	font-size: 0.56rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1;
-	color: #1a1a1a;
-	background: var(--em-gold);
-	border: 1.5px solid var(--em-panel);
+	font-size: 0.62rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1;
+	color: #201a00;
+	background: linear-gradient(150deg, #ffd84d 0%, var(--em-gold) 55%, #d99e07 100%);
+	border: 2px solid var(--em-panel);
 	border-radius: 999px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+	box-shadow: 0 2px 7px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 	white-space: nowrap;
+	transform-origin: center;
+	animation: emc-badge-pop 1.4s ease-in-out infinite;
 	z-index: 2;
+}
+@keyframes emc-badge-pop {
+	0%, 100% { transform: scale(1); }
+	50%      { transform: scale(1.1); }
 }
 /* Meta stanza con piccole icone gialle (persone · durata · difficoltà). */
 .emc-room-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5em; }
