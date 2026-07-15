@@ -47,22 +47,36 @@ final class Public_App {
 		// Disabilitiamo la cache quando lo shortcode è presente: la pagina è
 		// dinamica (disponibilità/lock in tempo reale) e non va comunque cachata.
 		$this->disable_page_cache();
+		$this->ensure_assets();
+	}
 
-		wp_register_script(
-			'em-booking-app',
-			EM_PLUGIN_URL . 'public/booking-app/booking-app.js',
-			array(),
-			EM_VERSION,
-			true
-		);
-
-		wp_register_style(
-			'em-booking-app',
-			EM_PLUGIN_URL . 'public/booking-app/booking-app.css',
-			array(),
-			EM_VERSION
-		);
-
+	/**
+	 * §FIX 2026-07-15 — Registra + accoda gli asset del widget. Chiamato sia da
+	 * enqueue_assets (quando lo shortcode è nel post_content) SIA da
+	 * render_shortcode: con Elementor lo shortcode vive nei dati Elementor, NON
+	 * nel post_content, quindi `has_shortcode($post->post_content)` è false e lo
+	 * script non veniva caricato → il widget non compariva. Accodando qui, allo
+	 * scattare dello shortcode, gli asset vengono stampati (nel footer) ovunque
+	 * lo shortcode sia usato (pagina normale, Elementor, blocchi, ecc.).
+	 */
+	private function ensure_assets(): void {
+		if ( ! wp_script_is( 'em-booking-app', 'registered' ) ) {
+			wp_register_script(
+				'em-booking-app',
+				EM_PLUGIN_URL . 'public/booking-app/booking-app.js',
+				array(),
+				EM_VERSION,
+				true
+			);
+		}
+		if ( ! wp_style_is( 'em-booking-app', 'registered' ) ) {
+			wp_register_style(
+				'em-booking-app',
+				EM_PLUGIN_URL . 'public/booking-app/booking-app.css',
+				array(),
+				EM_VERSION
+			);
+		}
 		wp_enqueue_script( 'em-booking-app' );
 		wp_enqueue_style( 'em-booking-app' );
 	}
@@ -89,6 +103,9 @@ final class Public_App {
 		// Ridondanza: se il tema non chiama wp_enqueue_scripts prima del
 		// rendering dello shortcode, garantiamo comunque il no-cache qui.
 		$this->disable_page_cache();
+		// §FIX 2026-07-15 — Accoda gli asset ANCHE qui: con Elementor lo
+		// shortcode non è nel post_content, quindi enqueue_assets non scatta.
+		$this->ensure_assets();
 
 		$config = wp_json_encode( array(
 			'apiBase'      => esc_url_raw( rest_url( EM_REST_NAMESPACE ) ),
@@ -102,6 +119,16 @@ final class Public_App {
 			// nel giorno) in cima con un boost pesato, senza seppellire le forti,
 			// ed evidenzia con un badge quelle con tanta disponibilità.
 			'promoteWeakRooms' => (bool) em_setting( 'em_promote_weak_rooms', false ),
+			// §Promo periodo — sconto % sui turni giocati in un intervallo, su stanze
+			// scelte. Il widget mostra un badge "-X%"; il totale è ricalcolato lato
+			// server (il badge è solo indicativo).
+			'promo' => array(
+				'enabled' => (bool) em_setting( 'em_promo_enabled', false ),
+				'percent' => (int) em_setting( 'em_promo_percent', 0 ),
+				'from'    => (string) em_setting( 'em_promo_from', '' ),
+				'to'      => (string) em_setting( 'em_promo_to', '' ),
+				'rooms'   => array_map( 'intval', (array) em_setting( 'em_promo_rooms', array() ) ),
+			),
 		) );
 
 		ob_start();

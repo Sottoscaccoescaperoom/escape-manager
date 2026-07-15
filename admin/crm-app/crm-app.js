@@ -1201,11 +1201,21 @@ function ExtraEditModal({ extra, onClose, onSave }) {
 
 function SettingsPage() {
 	const [data, setData] = useState(null);
+	const [rooms, setRooms] = useState([]);
 	const [msg, setMsg] = useState(null);
 	const [saving, setSaving] = useState(false);
-	useEffect(() => { api('GET', '/settings').then(r => setData(r.data)); }, []);
+	useEffect(() => {
+		api('GET', '/settings').then(r => setData(r.data));
+		api('GET', '/rooms').then(r => setRooms(r.data || [])).catch(() => {});
+	}, []);
 	if (!data) return html`<p class="em-loading">Caricamento…</p>`;
 	const set = (k, v) => setData({ ...data, [k]: v });
+	// §Promo periodo — lista stanze incluse (array di id).
+	const promoRooms = Array.isArray(data.em_promo_rooms) ? data.em_promo_rooms.map(Number) : [];
+	const togglePromoRoom = (id) => {
+		const has = promoRooms.includes(Number(id));
+		set('em_promo_rooms', has ? promoRooms.filter(x => x !== Number(id)) : [...promoRooms, Number(id)]);
+	};
 	const save = async () => {
 		setSaving(true);
 		try { const r = await api('PUT', '/settings', data); setData(r.data); setMsg('Salvato.'); }
@@ -1229,6 +1239,27 @@ function SettingsPage() {
 					<th>Promuovi stanze deboli</th>
 					<td>
 						<label><input type="checkbox" checked=${!!data.em_promote_weak_rooms} onChange=${e => set('em_promote_weak_rooms', e.target.checked ? 1 : 0)} /> Mostra più in alto le stanze con poche prenotazioni nel giorno (boost pesato, senza seppellire le più richieste) ed evidenziale con un badge "Disponibilità immediata".</label>
+					</td>
+				</tr>
+			</table>
+
+			<h2>Promo sconto a periodo</h2>
+			<table class="form-table">
+				<tr>
+					<th>Attiva promo</th>
+					<td><label><input type="checkbox" checked=${!!data.em_promo_enabled} onChange=${e => set('em_promo_enabled', e.target.checked ? 1 : 0)} /> Applica uno sconto percentuale ai turni giocati nel periodo, sulle stanze scelte. Nel sito compare un badge "−X%".</label></td>
+				</tr>
+				<tr><th>Sconto (%)</th><td><input type="number" min="0" max="100" style="width:90px" value=${data.em_promo_percent || 0} onInput=${e => set('em_promo_percent', Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))} /> %</td></tr>
+				<tr><th>Dal (data turno)</th><td><input type="date" value=${data.em_promo_from || ''} onInput=${e => set('em_promo_from', e.target.value)} /></td></tr>
+				<tr><th>Al (data turno)</th><td><input type="date" value=${data.em_promo_to || ''} onInput=${e => set('em_promo_to', e.target.value)} /></td></tr>
+				<tr>
+					<th>Stanze incluse</th>
+					<td>
+						${rooms.length === 0 ? html`<span class="em-muted">Nessuna stanza.</span>` : rooms.map(r => html`
+							<label style="display:inline-flex;align-items:center;gap:.35em;margin:0 1em .4em 0">
+								<input type="checkbox" checked=${promoRooms.includes(Number(r.id))} onChange=${() => togglePromoRoom(r.id)} /> ${r.name || r.room_name}
+							</label>`)}
+						<p class="description">Lo sconto si applica solo alle stanze spuntate.</p>
 					</td>
 				</tr>
 			</table>

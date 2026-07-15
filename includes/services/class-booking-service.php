@@ -89,6 +89,10 @@ final class Booking_Service {
 			'addon_gift'       => ! empty( $payload['addon_gift'] ),
 			'extras'           => isset( $payload['extras'] ) && is_array( $payload['extras'] ) ? $payload['extras'] : array(),
 			'code'             => $payload['discount_code'] ?? $payload['promocode'] ?? $payload['voucher_code'] ?? null,
+			// §Promo periodo — servono stanza e data del turno per lo sconto %.
+			'room_id'          => (int) $room['id'],
+			'game_date'        => (string) ( $payload['game_date'] ?? '' ),
+			'start_datetime'   => (string) $lock['start_datetime'],
 		) );
 		$total_amount = $pricing['total_cents'];
 		$extras_json  = ! empty( $pricing['extras'] ) ? wp_json_encode( $pricing['extras'] ) : null;

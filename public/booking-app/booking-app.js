@@ -174,6 +174,20 @@ function roomHasHighAvailability(room) {
 	const free = slots.filter(s => s && s.status === 'available').length;
 	return free > 0 && total >= 3 && (free / total) >= 0.7;
 }
+
+// ── §Promo periodo — sconto % su stanze scelte per turni in un intervallo ──
+// Ritorna la percentuale di sconto attiva per (stanza, data-turno), altrimenti 0.
+// NB: è solo indicativo per il badge; il totale reale lo ricalcola il server.
+function roomPromoPercent(room, dateIso) {
+	const p = CONFIG.promo;
+	if (!p || !p.enabled || !(p.percent > 0)) return 0;
+	const d = String(dateIso || '').slice(0, 10);
+	if (!d || !p.from || !p.to || d < p.from || d > p.to) return 0;
+	const rooms = Array.isArray(p.rooms) ? p.rooms : [];
+	const rid = room && (room.room_id != null ? room.room_id : room.id);
+	if (!rooms.map(Number).includes(Number(rid))) return 0;
+	return p.percent;
+}
 function rangeLabel(startIso) {
 	const end = isoAddDays(startIso, 6);
 	return dayNum(startIso) + ' ' + monthCap(startIso) + ' — ' + dayNum(end) + ' ' + monthCap(end);
@@ -259,9 +273,10 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 		</button>`;
 }
 
-function RoomHead({ room }) {
+function RoomHead({ room, dayDate }) {
 	const diff = difficultyLabel(room.difficulty);
 	const phrases = roomSlogans(room); // §SLOGAN — micro-frasi che si alternano
+	const promoPct = roomPromoPercent(room, dayDate);
 	return html`
 		<div class="emc-room-head">
 			<${Avatar} name=${room.room_name} img=${room.image_url} />
@@ -269,6 +284,7 @@ function RoomHead({ room }) {
 				<div class="emc-room-name-row">
 					<span class="emc-room-name">${room.room_name}</span>
 					<${RoomSlogan} phrases=${phrases} />
+					${promoPct > 0 ? html`<span class="emc-room-promo" title="Sconto attivo su questa stanza nel periodo">🔥 −${promoPct}%</span>` : ''}
 					${roomHasHighAvailability(room) ? html`<span class="emc-room-badge" title="Molti orari ancora liberi">✨ Disponibilità immediata</span>` : ''}
 				</div>
 				<div class="emc-room-meta">
@@ -433,7 +449,7 @@ function Step1_Calendar({ onPick }) {
 					${dayRooms.length === 0 && html`<div class="emc-empty">Nessuna stanza disponibile per questa data.</div>`}
 					${dayRooms.map(room => html`
 						<div class="emc-room" key=${room.room_id}>
-							<${RoomHead} room=${room} />
+							<${RoomHead} room=${room} dayDate=${selectedDate} />
 							<div class="emc-slots">
 								${room.slots.length === 0
 									? html`<span class="emc-slot-empty">Nessun orario</span>`
@@ -812,6 +828,9 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 			event_type: event.event_type,
 			extras: event.extras || [],
 			code: event.discount_code,
+			// §Promo periodo — stanza + data del turno per lo sconto %.
+			room_id: room.room_id,
+			game_date: String(slot.start || '').slice(0, 10),
 		}).then(r => setQuote(r.data)).catch(e => setQerror(e.message || 'Errore nel calcolo')).finally(() => setQloading(false));
 	}, []);
 
@@ -844,7 +863,8 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 				<div class="em-price-box">
 					<div class="em-price-row"><span>Giocatori paganti</span><span>${formatMoney(quote.subtotal_cents)}</span></div>
 					${quote.event_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Sconto ${eventLabelOf(event.event_type)} (1 gratis)</span><span>−${formatMoney(quote.event_discount_cents)}</span></div>`}
-					${quote.code_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Codice ${quote.applied_code || ''}</span><span>−${formatMoney(quote.code_discount_cents)}</span></div>`}
+					${quote.seasonal_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>🔥 Promo −${quote.seasonal_percent}%</span><span>−${formatMoney(quote.seasonal_discount_cents)}</span></div>`}
+						${quote.code_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Codice ${quote.applied_code || ''}</span><span>−${formatMoney(quote.code_discount_cents)}</span></div>`}
 					${quote.addons_cents > 0 && html`<div class="em-price-row"><span>🎁 Regalo nascosto</span><span>+${formatMoney(quote.addons_cents)}</span></div>`}
 					${(quote.extras || []).map(x => html`<div class="em-price-row"><span class="em-extra-row" data-ico="✨">${x.title}</span><span>+${formatMoney(x.price_cents)}</span></div>`)}
 					<div class="em-price-row em-price-total"><span>Totale in cassa</span><span>${formatMoney(quote.total_cents)}</span></div>
@@ -1049,6 +1069,8 @@ function App() {
 				customer_comment: eventData.customer_comment,
 				customer,
 				payment_method,
+				// §Promo periodo — data del turno per lo sconto % (coerente col preventivo).
+				game_date: String((selectedSlot && selectedSlot.start) || '').slice(0, 10),
 			});
 			localStorage.removeItem(LS_ACTIVE_LOCK);
 			setBooking(r.data);

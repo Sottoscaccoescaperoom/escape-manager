@@ -78,23 +78,47 @@ final class Pricing_Service {
 			}
 		}
 
-		// Promo/voucher applicati al costo giocatori al netto dello sconto evento.
-		// Campo unico "codice": si prova prima come promocode, poi come voucher.
+		// §Promo periodo — sconto % sui turni GIOCATI in un intervallo di date, su
+		// stanze scelte. Applicato al costo giocatori al netto dello sconto evento,
+		// PRIMA di eventuali promocode/voucher. Vedi impostazioni em_promo_*.
 		$promo_base = max( 0, $subtotal - $event_discount );
+		$seasonal_discount = 0;
+		$seasonal_percent  = 0;
+		if ( em_setting( 'em_promo_enabled', false ) ) {
+			$pct   = max( 0, min( 100, (int) em_setting( 'em_promo_percent', 0 ) ) );
+			$from  = (string) em_setting( 'em_promo_from', '' );
+			$to    = (string) em_setting( 'em_promo_to', '' );
+			$rooms = em_setting( 'em_promo_rooms', array() );
+			$rooms = is_array( $rooms ) ? array_map( 'intval', $rooms ) : array();
+			$room_id   = (int) ( $in['room_id'] ?? 0 );
+			// Data del turno (YYYY-MM-DD): preferisci game_date esplicita, poi start_datetime.
+			$game_date = (string) ( $in['game_date'] ?? '' );
+			if ( '' === $game_date ) { $game_date = substr( (string) ( $in['start_datetime'] ?? '' ), 0, 10 ); }
+			$in_range = $game_date && $from && $to && $game_date >= $from && $game_date <= $to;
+			$room_ok  = ! empty( $rooms ) && in_array( $room_id, $rooms, true );
+			if ( $pct > 0 && $in_range && $room_ok ) {
+				$seasonal_percent  = $pct;
+				$seasonal_discount = (int) round( $promo_base * $pct / 100 );
+			}
+		}
+		$after_seasonal = max( 0, $promo_base - $seasonal_discount );
+
+		// Promo/voucher applicati DOPO lo sconto periodo. Campo unico "codice":
+		// si prova prima come promocode, poi come voucher.
 		$code = $in['code'] ?? $in['discount_code'] ?? $in['promocode'] ?? $in['voucher_code'] ?? null;
 		$code_discount = 0;
 		$out = array();
 		if ( ! empty( $code ) ) {
-			$r = $this->promocodes->validate_and_compute( (string) $code, $promo_base );
+			$r = $this->promocodes->validate_and_compute( (string) $code, $after_seasonal );
 			if ( ! is_wp_error( $r ) ) {
 				$code_discount = $r['discount_cents']; $out['promocode_id'] = $r['promocode_id']; $out['applied_code'] = $r['code'];
 			} else {
-				$r = $this->vouchers->validate_and_compute( (string) $code, $promo_base );
+				$r = $this->vouchers->validate_and_compute( (string) $code, $after_seasonal );
 				if ( ! is_wp_error( $r ) ) { $code_discount = $r['discount_cents']; $out['voucher_id'] = $r['voucher_id']; $out['applied_code'] = $r['code']; }
 			}
 		}
 
-		$total = max( 0, $promo_base - $code_discount ) + $addons + $extras_total;
+		$total = max( 0, $after_seasonal - $code_discount ) + $addons + $extras_total;
 
 		return array_merge( array(
 			'adults'              => $adults,
@@ -109,6 +133,8 @@ final class Pricing_Service {
 			'celebration_threshold' => $threshold,
 			'celebration_eligible'  => $celeb_eligible,
 			'event_discount_cents'  => $event_discount,
+			'seasonal_discount_cents' => $seasonal_discount,
+			'seasonal_percent'        => $seasonal_percent,
 			'addons_cents'        => $addons,
 			'extras_cents'        => $extras_total,
 			'extras'              => $extras_out,
