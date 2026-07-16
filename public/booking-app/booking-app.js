@@ -165,16 +165,6 @@ function orderRoomsWeighted(baseRooms, days) {
 		.sort((a, b) => (a.score - b.score) || (a.baseIndex - b.baseIndex))
 		.map(x => x.room);
 }
-// Badge "molta disponibilità": attivo solo col toggle, stanza prevalentemente
-// libera nel giorno ma con almeno uno slot prenotabile.
-function roomHasHighAvailability(room) {
-	if (!CONFIG.promoteWeakRooms) return false;
-	const slots = (room && room.slots) || [];
-	const total = slots.length;
-	const free = slots.filter(s => s && s.status === 'available').length;
-	return free > 0 && total >= 3 && (free / total) >= 0.7;
-}
-
 // ── §Promo periodo — sconto % su stanze scelte per turni in un intervallo ──
 // Ritorna la percentuale di sconto attiva per (stanza, data-turno), altrimenti 0.
 // NB: è solo indicativo per il badge; il totale reale lo ricalcola il server.
@@ -306,7 +296,6 @@ function RoomHead({ room, dayDate }) {
 				<div class="emc-room-name-row">
 					<span class="emc-room-name">${room.room_name}</span>
 					<${RoomSlogan} phrases=${phrases} />
-					${roomHasHighAvailability(room) ? html`<span class="emc-room-badge" title="Molti orari ancora liberi">✨ Disponibilità immediata</span>` : ''}
 				</div>
 				<div class="emc-room-meta">
 					<span class="emc-meta-item">${ICON_PEOPLE} ${room.min_players} - ${room.max_players} persone</span>

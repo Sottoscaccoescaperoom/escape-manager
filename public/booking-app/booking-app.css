@@ -507,15 +507,24 @@
 	-webkit-text-fill-color: var(--em-text);
 	color-scheme: dark;
 }
-/* Autofill: Chrome dipinge sfondo giallo + testo blu. Sovrascrivo entrambi. */
+/* §Fix 2026-07-15 — Autofill (Chrome giallo, iOS Safari BIANCO): con la
+   compilazione automatica su mobile il campo diventava bianco e il testo
+   spariva. Forziamo sfondo scuro + testo chiaro anche in autofill/active,
+   con !important (iOS ignora la versione senza), su input E textarea. */
 .em-booking-app input:-webkit-autofill,
 .em-booking-app input:-webkit-autofill:hover,
 .em-booking-app input:-webkit-autofill:focus,
-.em-booking-app textarea:-webkit-autofill {
-	-webkit-text-fill-color: var(--em-text);
-	-webkit-box-shadow: 0 0 0 1000px var(--em-panel-2) inset;
-	caret-color: var(--em-text);
-	transition: background-color 5000s ease-in-out 0s;
+.em-booking-app input:-webkit-autofill:active,
+.em-booking-app textarea:-webkit-autofill,
+.em-booking-app textarea:-webkit-autofill:focus,
+.em-booking-app select:-webkit-autofill {
+	-webkit-text-fill-color: var(--em-text) !important;
+	-webkit-box-shadow: 0 0 0 1000px var(--em-panel-2) inset !important;
+	box-shadow: 0 0 0 1000px var(--em-panel-2) inset !important;
+	background-color: var(--em-panel-2) !important;
+	caret-color: var(--em-text) !important;
+	color: var(--em-text) !important;
+	transition: background-color 99999s ease-in-out 0s;
 }
 .em-booking-app input:focus, .em-booking-app textarea:focus {
 	outline: none; border-color: var(--em-accent);
@@ -527,49 +536,28 @@
 .em-summary { display: grid; gap: 0.6em; background: var(--em-panel-2); border: 1px solid var(--em-border); border-radius: 12px; padding: 1.2em 1.3em; font-size: 1.1em; line-height: 1.4; }
 .em-summary strong { color: var(--em-muted); font-weight: 600; margin-right: 0.35em; }
 
-/* §Fix 2026-07-02 — Avviso gift card / QR: prima passava inosservato tra
-   gli altri box. Ora piu' evidente: sfondo giallo, bordo pulsante, icona
-   grande a sinistra, pulse leggero per attirare l'occhio. */
+/* §Fix 2026-07-15 — Avviso gift card / QR reso DISCRETO: una piccola nota
+   sobria (niente box giallo grande, niente pulsazione, icona piccola). */
 .em-giftnote {
 	position: relative;
-	margin: 1.4em 0;
-	padding: 1em 1.15em 1em 3.4em;
-	background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0.06));
-	border: 2px solid #fbbf24;
-	border-radius: 14px;
-	color: #fde68a;
-	font-size: 1.02em;
-	line-height: 1.5;
-	box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6);
-	animation: em-aura-glow 2.4s ease-in-out infinite;
+	margin: 0.9em 0;
+	padding: 0.55em 0.8em 0.55em 2.1em;
+	background: rgba(251, 191, 36, 0.05);
+	border: 1px solid rgba(251, 191, 36, 0.20);
+	border-radius: 9px;
+	color: var(--em-muted);
+	font-size: 0.8em;
+	line-height: 1.4;
 }
 .em-giftnote::before {
 	content: '🎟️';
 	position: absolute;
-	top: 50%;
-	left: 0.85em;
-	transform: translateY(-50%);
-	font-size: 1.7em;
+	left: 0.62em;
+	top: 0.6em;
+	font-size: 0.95em;
 	line-height: 1;
-	filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.5));
 }
-.em-giftnote > br + strong,
-.em-giftnote strong {
-	color: #fef3c7;
-}
-/* Nascondiamo la vecchia emoji inline nel testo (::before la sostituisce). */
-.em-giftnote {
-	text-indent: -1.4em;
-	padding-left: 3.4em;
-}
-.em-giftnote > * {
-	text-indent: 0;
-}
-@keyframes em-gift-pulse {
-	0%   { box-shadow: 0 0 0 0    rgba(251, 191, 36, 0.55); }
-	70%  { box-shadow: 0 0 0 12px rgba(251, 191, 36, 0);    }
-	100% { box-shadow: 0 0 0 0    rgba(251, 191, 36, 0);    }
-}
+.em-giftnote strong { color: #fcd34d; font-weight: 600; }
 
 .em-promo-row { display: flex; gap: 0.5em; }
 .em-promo-applied { display: flex; align-items: center; gap: 0.5em; color: var(--em-ok); }
