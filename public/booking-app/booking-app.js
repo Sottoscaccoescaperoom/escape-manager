@@ -727,8 +727,6 @@ function Step_Event({ players, onNext, onBack }) {
 					</button>`)}
 			</div>
 
-			${isCeleb && players >= 6 && html`<div class="em-info-box em-info-ok">🎉 Siete in ${players}: per questa occasione <strong>una persona non paga</strong> (−€22)!</div>`}
-			${isCeleb && players < 6 && html`<div class="em-info-box">Da <strong>6 giocatori</strong> in su, per le occasioni speciali una persona non paga. Ora siete in ${players}.</div>`}
 
 			${fieldLabel && html`
 				<label class="em-field">${fieldLabel}${labelRequired ? ' *' : ''}
