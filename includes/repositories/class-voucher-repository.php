@@ -57,6 +57,30 @@ final class Voucher_Repository extends Base_Repository {
 		);
 	}
 
+	/**
+	 * §SEC 2026-07-22 (audit em-plugin) — Consumo PARZIALE atomico. Prima
+	 * `mark_used` marcava l'intero voucher come usato anche quando lo sconto
+	 * applicato era INFERIORE al valore del voucher → il residuo andava perso.
+	 * Ora scaliamo solo l'importo consumato e marchiamo 'used' solo a saldo zero.
+	 * L'UPDATE condizionato (status='active') evita anche il doppio consumo.
+	 *
+	 * @return bool true se il consumo ha avuto effetto.
+	 */
+	public function consume( int $id, int $consumed_cents ): bool {
+		$this->wpdb->query(
+			$this->wpdb->prepare(
+				"UPDATE {$this->table}
+				    SET amount = GREATEST(0, amount - %d),
+				        status = CASE WHEN amount - %d <= 0 THEN 'used' ELSE status END
+				  WHERE id = %d AND status = 'active'",
+				$consumed_cents,
+				$consumed_cents,
+				$id
+			)
+		);
+		return (int) $this->wpdb->rows_affected > 0;
+	}
+
 	private function generate_code(): string {
 		do {
 			$code = 'GIFT-' . strtoupper( substr( bin2hex( random_bytes( 4 ) ), 0, 8 ) );

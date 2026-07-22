@@ -66,7 +66,19 @@ final class Voucher_Service {
 		);
 	}
 
-	public function redeem( int $voucher_id ): void {
+	/**
+	 * §SEC 2026-07-22 (audit em-plugin) — Riscatta il voucher scalando SOLO
+	 * l'importo effettivamente usato (consumo parziale): il residuo resta
+	 * spendibile. Se non viene passato l'importo, per retro-compatibilità marca
+	 * l'intero voucher come usato (comportamento precedente).
+	 *
+	 * @return bool true se il consumo ha avuto effetto (voucher ancora attivo).
+	 */
+	public function redeem( int $voucher_id, ?int $consumed_cents = null ): bool {
+		if ( $consumed_cents !== null && $consumed_cents > 0 ) {
+			return $this->repo->consume( $voucher_id, $consumed_cents );
+		}
 		$this->repo->mark_used( $voucher_id );
+		return true;
 	}
 }

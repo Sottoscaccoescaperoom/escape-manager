@@ -140,11 +140,16 @@ final class Booking_Service {
 		$this->customers->increment_booking_count( $customer_id, (int) $room['id'] );
 
 		// Consume promocode/voucher se applicati
+		// §SEC 2026-07-22 (audit em-plugin) — consumo atomico/condizionato al
+		// limite e, per i voucher, PARZIALE (scala solo l'importo usato).
 		if ( ! empty( $pricing['promocode_id'] ) ) {
-			( new Promocode_Service() )->consume( $pricing['promocode_id'] );
+			$ok = ( new Promocode_Service() )->consume( (int) $pricing['promocode_id'] );
+			if ( ! $ok ) {
+				error_log( sprintf( '[escape-manager] Promocode #%d oltre il limite in fase di consumo (race): sconto applicato senza incremento su booking #%d', (int) $pricing['promocode_id'], (int) $booking_id ) );
+			}
 		}
 		if ( ! empty( $pricing['voucher_id'] ) ) {
-			( new Voucher_Service() )->redeem( $pricing['voucher_id'] );
+			( new Voucher_Service() )->redeem( (int) $pricing['voucher_id'], (int) ( $pricing['code_discount_cents'] ?? 0 ) );
 		}
 
 		$booking = $this->bookings->find( $booking_id );

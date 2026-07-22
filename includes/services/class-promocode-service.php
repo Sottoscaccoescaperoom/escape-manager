@@ -54,7 +54,12 @@ final class Promocode_Service {
 		);
 	}
 
-	public function consume( int $promocode_id ): void {
-		$this->repo->increment_usage( $promocode_id );
+	/**
+	 * @return bool true se il codice è stato consumato (era ancora spendibile).
+	 *              false se il limite era già raggiunto (race): il chiamante può
+	 *              loggare/annullare lo sconto.
+	 */
+	public function consume( int $promocode_id ): bool {
+		return $this->repo->increment_usage( $promocode_id );
 	}
 }

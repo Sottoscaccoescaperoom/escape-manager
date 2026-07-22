@@ -53,12 +53,24 @@ final class Promocode_Repository extends Base_Repository {
 		return false !== $this->wpdb->update( $this->table, $data, array( 'id' => $id ) );
 	}
 
-	public function increment_usage( int $id ): void {
+	/**
+	 * §SEC 2026-07-22 (audit em-plugin) — Incremento ATOMICO e CONDIZIONATO al
+	 * limite: prima l'UPDATE incrementava incondizionatamente, così due richieste
+	 * concorrenti che superavano entrambe il check `used_count < usage_limit` in
+	 * validate_and_compute potevano portare used_count OLTRE il limite (double
+	 * spend). Ora l'UPDATE incrementa solo se ancora sotto il limite; il numero di
+	 * righe modificate dice se ha avuto effetto.
+	 *
+	 * @return bool true se l'incremento è avvenuto (codice ancora spendibile).
+	 */
+	public function increment_usage( int $id ): bool {
 		$this->wpdb->query(
 			$this->wpdb->prepare(
-				"UPDATE {$this->table} SET used_count = used_count + 1 WHERE id = %d",
+				"UPDATE {$this->table} SET used_count = used_count + 1
+				 WHERE id = %d AND ( usage_limit IS NULL OR used_count < usage_limit )",
 				$id
 			)
 		);
+		return (int) $this->wpdb->rows_affected > 0;
 	}
 }
