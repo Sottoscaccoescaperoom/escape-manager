@@ -68,14 +68,15 @@ final class Pricing_Service {
 			}
 		}
 
-		// §Fix 2026-07-16 — Sconto celebrazione RIMOSSO: per compleanno / addio
-		// celibato / nubilato NON esiste più il "una persona non paga (−€22)".
-		// L'occasione resta selezionabile (nome festeggiato/tracciamento), ma senza
-		// sconto. I flag restano nell'output per retrocompatibilità, a 0/false.
+		// §Ripristino 2026-07-23 — Sconto celebrazione: per compleanno / addio
+		// celibato / nubilato, se i giocatori totali ≥ soglia (default 6), una
+		// persona non paga (−€22). Il festeggiato è gratis. Sotto la soglia nessuno
+		// sconto. event_discount alimenta il totale, celeb_eligible pilota il widget.
 		$threshold      = (int) em_setting( 'em_celebration_threshold', 6 );
+		$celeb_discount = (int) em_setting( 'em_celebration_discount', 2200 );
 		$is_celebration = in_array( $event, self::CELEBRATIONS, true );
-		$celeb_eligible = false;
-		$event_discount = 0;
+		$celeb_eligible = $is_celebration && $players >= $threshold;
+		$event_discount = $celeb_eligible ? min( $subtotal, $celeb_discount ) : 0;
 
 		// Add-on legacy (es. regalo) — mantenuto per compatibilità.
 		$addons = ! empty( $in['addon_gift'] ) ? (int) em_setting( 'em_addon_gift', 500 ) : 0;
