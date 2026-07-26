@@ -46,20 +46,46 @@ function formatMoney(cents) {
 	return ((cents || 0) / 100).toFixed(2).replace('.', ',') + ' €';
 }
 
+// §Fix 2026-07-26 — TZ: le REST /bookings restituiscono start_datetime come
+// "YYYY-MM-DD HH:MM:SS" in UTC, senza marcatore di fuso. `new Date()` lo legge
+// come ora LOCALE, quindi in estate il CRM mostrava tutti i turni 2h indietro.
+// Normalizziamo solo la forma "naive"; le date gia' con offset restano intatte.
+function parseApiDate(iso) {
+	const s = String(iso ?? '');
+	if (/(Z|[+-]\d{2}:?\d{2})$/.test(s)) return new Date(s);
+	if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) return new Date(s.replace(' ', 'T') + 'Z');
+	return new Date(s);
+}
+
 function formatDateTime(iso) {
 	if (!iso) return '';
-	const d = new Date(iso);
+	const d = parseApiDate(iso);
 	return d.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short', timeZone: CONFIG.timezone });
 }
 
 function formatTime(iso) {
 	if (!iso) return '';
-	return new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: CONFIG.timezone });
+	return parseApiDate(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: CONFIG.timezone });
 }
 
 function formatDateShort(iso) {
 	if (!iso) return '';
-	return new Date(iso).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
+	return parseApiDate(iso).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', timeZone: CONFIG.timezone });
+}
+
+// §Fix 2026-07-26 — valore per un <input type="datetime-local">, che vuole
+// l'ora "da orologio" locale. Prima si usava toISOString().slice(0,16), cioe'
+// l'ora UTC: cliccando lo slot delle 17:00 il modale precompilava 15:00 e
+// salvava un turno di 2h prima. Qui formattiamo nel fuso configurato.
+function toDatetimeLocalValue(iso) {
+	if (!iso) return '';
+	const d = parseApiDate(iso);
+	if (isNaN(d.getTime())) return '';
+	return new Intl.DateTimeFormat('sv-SE', {
+		timeZone: CONFIG.timezone,
+		year: 'numeric', month: '2-digit', day: '2-digit',
+		hour: '2-digit', minute: '2-digit', hour12: false,
+	}).format(d).replace(' ', 'T');
 }
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -325,7 +351,7 @@ function NewBookingModal({ initial, onClose, onSaved }) {
 	const [search, setSearch] = useState('');
 	const [form, setForm] = useState({
 		room_id: initial.room_id || null,
-		start_datetime: initial.start ? new Date(initial.start).toISOString().slice(0, 16) : '',
+		start_datetime: toDatetimeLocalValue(initial.start),
 		adults: 2, children: 0,
 		customer_id: null,
 		customer: { first_name: '', last_name: '', phone: '', email: '' },

@@ -85,13 +85,27 @@ function formatPriceShort(cents) {
 	const e = cents / 100;
 	return (Number.isInteger(e) ? String(e) : e.toFixed(2).replace('.', ',')) + ' €';
 }
+// §Fix 2026-07-26 — TZ: le API che leggono direttamente il DB (/bookings/public,
+// /bookings/public/{code}) restituiscono start_datetime come "YYYY-MM-DD HH:MM:SS"
+// in UTC, SENZA marcatore di fuso. `new Date()` interpreta quella forma come ora
+// LOCALE: in estate il cliente vedeva l'orario indietro di 2h (prenota 17:00 →
+// schermata di conferma 15:00). /availability invece manda gia' ISO con offset
+// (format 'c'), che va lasciato intatto. Qui normalizziamo solo la forma "naive".
+function parseApiDate(iso) {
+	const s = String(iso ?? '');
+	// Ha gia' un fuso esplicito (Z oppure ±HH:MM)? Allora e' autodescrittivo.
+	if (/(Z|[+-]\d{2}:?\d{2})$/.test(s)) return new Date(s);
+	// "YYYY-MM-DD HH:MM:SS" o "YYYY-MM-DDTHH:MM:SS" senza fuso = UTC dal DB.
+	if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) return new Date(s.replace(' ', 'T') + 'Z');
+	return new Date(s);
+}
 function formatTime(iso) {
-	const d = new Date(iso);
+	const d = parseApiDate(iso);
 	return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: CONFIG.timezone });
 }
 function formatDate(iso) {
-	const d = new Date(iso);
-	return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+	const d = parseApiDate(iso);
+	return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: CONFIG.timezone });
 }
 
 // ── Helper date (TZ-safe, lavorano su 'YYYY-MM-DD' locale) ──
@@ -934,8 +948,9 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 function ExperienceCountdown({ target }) {
 	const ref = useRef(null);
 	useEffect(() => {
-		let t = new Date(target).getTime();
-		if (isNaN(t)) t = new Date(String(target).replace(' ', 'T')).getTime();
+		// §Fix 2026-07-26 — stesso problema di formatTime(): start_datetime arriva
+		// UTC "naive" e senza normalizzazione il countdown sbagliava di 2h.
+		let t = parseApiDate(target).getTime();
 		const cell = (n, l) => `<div class="em-xc-cell"><span class="em-xc-num">${n}</span><span class="em-xc-lbl">${l}</span></div>`;
 		const tick = () => {
 			let diff = t - Date.now();
