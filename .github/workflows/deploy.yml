@@ -34,6 +34,22 @@ jobs:
           # farsi passare per il sito e ricevere i file.
           ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Controlla che il percorso sia davvero quello del plugin
+        # rsync gira con --delete: tutto cio' che sta nella cartella di
+        # destinazione e non e' nel repository viene rimosso. Se WP_PLUGIN_PATH
+        # puntasse per sbaglio a wp-content/plugins invece che alla cartella del
+        # singolo plugin, verrebbero cancellati TUTTI gli altri plugin del sito.
+        # Qui pretendiamo di trovare escape-manager.php nella destinazione:
+        # se non c'e', la pubblicazione si ferma senza toccare niente.
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "${{ secrets.SSH_PORT || 22 }}" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "test -f '${{ secrets.WP_PLUGIN_PATH }}/escape-manager.php'" \
+          || { echo "STOP: in ${{ secrets.WP_PLUGIN_PATH }} non c'e' escape-manager.php."; \
+               echo "Controlla il secret WP_PLUGIN_PATH: deve puntare alla cartella DEL PLUGIN"; \
+               echo "(es. .../wp-content/plugins/escape-manager), non a wp-content/plugins."; \
+               exit 1; }
+
       - name: Copia i file del plugin
         run: |
           rsync -az --delete \
