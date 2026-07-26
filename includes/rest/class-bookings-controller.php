@@ -77,6 +77,19 @@ final class Bookings_Controller extends Rest_Controller_Base {
 			),
 		) );
 
+		// §Ponte di ritorno 2026-07-26 — Finora il ponte era a SENSO UNICO: il
+		// plugin mandava le prenotazioni al gestionale, ma un turno annullato
+		// nel gestionale restava "occupato" qui, cioe' lo slot non tornava
+		// vendibile sul sito. Questo endpoint chiude il cerchio.
+		// Autenticazione server-to-server con lo STESSO segreto condiviso gia'
+		// usato in uscita (`em_sottoscacco_webhook_secret`): niente nuova
+		// configurazione da fare.
+		register_rest_route( self::NAMESPACE, '/bridge/cancel', array(
+			'methods'             => 'POST',
+			'callback'            => array( $this, 'bridge_cancel' ),
+			'permission_callback' => array( $this, 'bridge_permission' ),
+		) );
+
 		register_rest_route( self::NAMESPACE, '/bookings/(?P<id>\d+)/confirm', array(
 			'methods'             => 'POST',
 			'callback'            => array( $this, 'confirm' ),
@@ -247,6 +260,76 @@ final class Bookings_Controller extends Rest_Controller_Base {
 		$res  = $this->service->transition_to( (int) $req['id'], Booking::STATUS_CANCELLED, array( 'reason' => $body['reason'] ?? null ) );
 		if ( is_wp_error( $res ) ) return $this->wp_error_response( $res );
 		return em_json_data( $this->present( $res ) );
+	}
+
+	/**
+	 * §Ponte di ritorno 2026-07-26 — Autenticazione del gestionale.
+	 * Fail-secure: se il segreto non e' configurato, nega sempre. Confronto a
+	 * tempo costante per non farne trapelare la lunghezza tentativo dopo tentativo.
+	 */
+	public function bridge_permission( \WP_REST_Request $req ): bool {
+		$secret = trim( (string) em_setting( 'em_sottoscacco_webhook_secret', '' ) );
+		if ( '' === $secret ) {
+			return false;
+		}
+		$header = (string) $req->get_header( 'authorization' );
+		$token  = trim( str_ireplace( 'Bearer ', '', $header ) );
+		if ( '' === $token ) {
+			$token = trim( (string) $req->get_header( 'x-api-key' ) );
+		}
+		return hash_equals( $secret, $token );
+	}
+
+	/**
+	 * §Ponte di ritorno 2026-07-26 — Annulla qui una prenotazione annullata nel
+	 * gestionale, cosi' lo slot torna disponibile sul sito.
+	 *
+	 * Accetta `external_id` (l'id con cui il gestionale conosce il turno, es.
+	 * "em-123") oppure `booking_code`. Idempotente: se la prenotazione risulta
+	 * gia' annullata risponde ok senza rifare nulla, cosi' un rinvio del
+	 * gestionale non produce errori.
+	 *
+	 * Sul ciclo: l'annullamento qui fa ripartire il ponte in uscita verso il
+	 * gestionale, che pero' trova il turno gia' annullato e si ferma li'. Nessun
+	 * rimbalzo infinito.
+	 */
+	public function bridge_cancel( \WP_REST_Request $req ): \WP_REST_Response {
+		$body        = $this->body( $req );
+		$external_id = trim( (string) ( $body['external_id'] ?? '' ) );
+		$code        = trim( (string) ( $body['booking_code'] ?? '' ) );
+
+		$booking = null;
+		if ( '' !== $external_id ) {
+			// L'id esterno e' "<prefisso><id>" (prefisso configurabile, default "em-").
+			$prefix = (string) em_setting( 'em_sottoscacco_external_id_prefix', 'em-' );
+			$raw    = $external_id;
+			if ( '' !== $prefix && 0 === strpos( $raw, $prefix ) ) {
+				$raw = substr( $raw, strlen( $prefix ) );
+			}
+			if ( ctype_digit( $raw ) ) {
+				$booking = $this->bookings->find( (int) $raw );
+			}
+		}
+		if ( ! $booking && '' !== $code ) {
+			$booking = $this->bookings->find_by_code( $code );
+		}
+		if ( ! $booking ) {
+			return em_json_error( 'NOT_FOUND', 'Prenotazione non trovata', 404 );
+		}
+
+		if ( Booking::STATUS_CANCELLED === ( $booking['booking_status'] ?? '' ) ) {
+			return em_json_data( array( 'ok' => true, 'already_cancelled' => true, 'id' => (int) $booking['id'] ) );
+		}
+
+		$res = $this->service->transition_to(
+			(int) $booking['id'],
+			Booking::STATUS_CANCELLED,
+			array( 'reason' => (string) ( $body['reason'] ?? 'Annullata dal gestionale Sottoscacco' ) )
+		);
+		if ( is_wp_error( $res ) ) {
+			return $this->wp_error_response( $res );
+		}
+		return em_json_data( array( 'ok' => true, 'id' => (int) $booking['id'] ) );
 	}
 
 	public function transition( \WP_REST_Request $req ): \WP_REST_Response {
