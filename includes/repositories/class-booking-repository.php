@@ -167,6 +167,18 @@ final class Booking_Repository extends Base_Repository {
 			$where[] = 'start_datetime <= %s';
 			$params[] = (string) $filters['to'];
 		}
+		// §Data di arrivo 2026-07-26 — `from`/`to` filtrano la data di GIOCO
+		// (start_datetime). Questi due invece filtrano il momento in cui la
+		// prenotazione e' ARRIVATA, per rispondere a "quante ne sono entrate
+		// oggi?". Valori attesi in UTC, come start_datetime.
+		if ( ! empty( $filters['created_from'] ) ) {
+			$where[] = 'created_at >= %s';
+			$params[] = (string) $filters['created_from'];
+		}
+		if ( ! empty( $filters['created_to'] ) ) {
+			$where[] = 'created_at <= %s';
+			$params[] = (string) $filters['created_to'];
+		}
 		if ( ! empty( $filters['customer_id'] ) ) {
 			$where[] = 'customer_id = %d';
 			$params[] = (int) $filters['customer_id'];
@@ -180,7 +192,11 @@ final class Booking_Repository extends Base_Repository {
 		$where_sql = implode( ' AND ', $where );
 		$offset    = max( 0, ( $page - 1 ) * $per_page );
 
-		$rows_sql  = "SELECT * FROM {$this->table} WHERE {$where_sql} ORDER BY start_datetime DESC LIMIT %d OFFSET %d";
+		// §Data di arrivo 2026-07-26 — Ordinamento selezionabile: per data di
+		// gioco (default, com'era) oppure per data di arrivo della prenotazione.
+		// Whitelist rigida: il valore finisce in SQL e non passa da prepare().
+		$order_col = ( ( $filters['order_by'] ?? '' ) === 'created_at' ) ? 'created_at' : 'start_datetime';
+		$rows_sql  = "SELECT * FROM {$this->table} WHERE {$where_sql} ORDER BY {$order_col} DESC LIMIT %d OFFSET %d";
 		$total_sql = "SELECT COUNT(*) FROM {$this->table} WHERE {$where_sql}";
 
 		$rows_params  = array_merge( $params, array( $per_page, $offset ) );

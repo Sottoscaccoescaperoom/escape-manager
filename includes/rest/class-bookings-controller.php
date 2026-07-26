@@ -160,6 +160,11 @@ final class Bookings_Controller extends Rest_Controller_Base {
 			'payment_status' => $this->str_param( $req, 'payment_status' ),
 			'from'           => $this->str_param( $req, 'from' ),
 			'to'             => $this->str_param( $req, 'to' ),
+			// §Data di arrivo 2026-07-26 — filtro sul momento in cui la
+			// prenotazione e' stata fatta, distinto dalla data di gioco.
+			'created_from'   => $this->str_param( $req, 'created_from' ),
+			'created_to'     => $this->str_param( $req, 'created_to' ),
+			'order_by'       => $this->str_param( $req, 'order_by' ),
 			'customer_id'    => $this->int_param( $req, 'customer_id' ),
 			'search'         => $this->str_param( $req, 'search' ),
 		);
