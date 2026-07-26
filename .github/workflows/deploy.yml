@@ -1,0 +1,60 @@
+name: Deploy plugin sul sito
+
+# Pubblica il plugin sul sito WordPress a ogni push su `main`, poi svuota la
+# cache LiteSpeed (senza quel passaggio i clienti continuerebbero a ricevere il
+# vecchio JavaScript dalla cache, che e' esattamente come si e' manifestato il
+# bug degli orari a -2 ore).
+#
+# `workflow_dispatch` permette di rilanciare la pubblicazione a mano dalla tab
+# Actions, senza dover fare un commit finto.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Una pubblicazione alla volta: due push ravvicinati non si sovrappongono
+# copiando file a meta'.
+concurrency:
+  group: deploy-plugin
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Prepara la chiave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          # Fissa l'impronta del server: senza, un man-in-the-middle potrebbe
+          # farsi passare per il sito e ricevere i file.
+          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copia i file del plugin
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/id_deploy -p ${{ secrets.SSH_PORT || 22 }}" \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '*.md' \
+            --exclude 'readme.txt' \
+            ./ \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.WP_PLUGIN_PATH }}/"
+
+      - name: Svuota la cache LiteSpeed
+        # Non blocca la pubblicazione: se WP-CLI non c'e' o il comando cambia
+        # nome, i file sono comunque gia' aggiornati. In quel caso la cache si
+        # svuota a mano dalla bacheca WordPress.
+        continue-on-error: true
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "${{ secrets.SSH_PORT || 22 }}" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd ${{ secrets.WP_ROOT_PATH }} && wp litespeed-purge all --allow-root"
+
+      - name: Chiudi
+        if: always()
+        run: rm -f ~/.ssh/id_deploy
