@@ -142,14 +142,53 @@ final class Booking_Service {
 		// Consume promocode/voucher se applicati
 		// §SEC 2026-07-22 (audit em-plugin) — consumo atomico/condizionato al
 		// limite e, per i voucher, PARZIALE (scala solo l'importo usato).
+		//
+		// §SEC 2026-07-27 (audit F47, terzo giro) — COMPENSAZIONE.
+		// Il consumo atomico protegge il CONTATORE, ma non proteggeva il DENARO:
+		// la prenotazione viene creata PRIMA del consumo, con lo sconto gia'
+		// applicato. Se il consumo falliva — codice esaurito da una prenotazione
+		// concorrente, voucher gia' speso — il promocode si limitava a scrivere una
+		// riga di log e il voucher ignorava del tutto l'esito: in entrambi i casi la
+		// prenotazione RESTAVA scontata. Il limite d'uso risultava rispettato nei
+		// numeri e violato nei fatti.
+		//
+		// Ora, se il consumo non ha effetto, lo sconto viene tolto dalla
+		// prenotazione appena creata e il totale torna quello pieno.
+		$code_discount = (int) ( $pricing['code_discount_cents'] ?? 0 );
+		$sconto_da_revocare = 0;
+		$motivo_revoca      = '';
+
 		if ( ! empty( $pricing['promocode_id'] ) ) {
 			$ok = ( new Promocode_Service() )->consume( (int) $pricing['promocode_id'] );
 			if ( ! $ok ) {
-				error_log( sprintf( '[escape-manager] Promocode #%d oltre il limite in fase di consumo (race): sconto applicato senza incremento su booking #%d', (int) $pricing['promocode_id'], (int) $booking_id ) );
+				$sconto_da_revocare = $code_discount;
+				$motivo_revoca      = sprintf( 'promocode #%d oltre il limite d\'uso', (int) $pricing['promocode_id'] );
 			}
 		}
-		if ( ! empty( $pricing['voucher_id'] ) ) {
-			( new Voucher_Service() )->redeem( (int) $pricing['voucher_id'], (int) ( $pricing['code_discount_cents'] ?? 0 ) );
+		// Il voucher si riscatta solo se c'e' davvero un importo da scalare: con 0
+		// `redeem()` ricadrebbe su `mark_used()` e brucerebbe l'INTERO voucher.
+		if ( ! empty( $pricing['voucher_id'] ) && $code_discount > 0 ) {
+			$ok = ( new Voucher_Service() )->redeem( (int) $pricing['voucher_id'], $code_discount );
+			if ( ! $ok ) {
+				$sconto_da_revocare = $code_discount;
+				$motivo_revoca      = sprintf( 'voucher #%d non piu\' attivo o gia\' consumato', (int) $pricing['voucher_id'] );
+			}
+		}
+
+		if ( $sconto_da_revocare > 0 ) {
+			$total_amount = $total_amount + $sconto_da_revocare;
+			$this->bookings->update( $booking_id, array( 'total_amount' => $total_amount ) );
+			error_log( sprintf(
+				'[escape-manager] Sconto revocato su booking #%d (%s): totale riportato a %d centesimi.',
+				(int) $booking_id,
+				$motivo_revoca,
+				$total_amount
+			) );
+			$this->logger->log( 'booking_discount_revoked', 'booking', $booking_id, null, array(
+				'reason'          => $motivo_revoca,
+				'discount_cents'  => $sconto_da_revocare,
+				'new_total_cents' => $total_amount,
+			) );
 		}
 
 		$booking = $this->bookings->find( $booking_id );
