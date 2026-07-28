@@ -134,6 +134,11 @@ final class Bookings_Controller extends Rest_Controller_Base {
 	}
 
 	public function create_public( \WP_REST_Request $req ): \WP_REST_Response {
+		// §SEC 2026-07-28 — limite stretto: nessuno crea 10 prenotazioni/min in modo legittimo.
+		$rl = $this->rate_limit( 'booking_public', 10, 60 );
+		if ( is_wp_error( $rl ) ) {
+			return $this->wp_error_response( $rl );
+		}
 		$body   = $this->body( $req );
 		$result = $this->service->create_from_public( $body );
 		if ( is_wp_error( $result ) ) {
@@ -144,6 +149,13 @@ final class Bookings_Controller extends Rest_Controller_Base {
 
 	/** Preventivo live (nessuna scrittura): fasce d'età + evento + add-on + codice. */
 	public function quote( \WP_REST_Request $req ): \WP_REST_Response {
+		// §SEC 2026-07-28 — limite GENEROSO (il widget richiama il quote a ogni
+		// modifica): 120/min non tocca l'uso reale ma frena il brute-force dei
+		// codici promo/voucher.
+		$rl = $this->rate_limit( 'quote', 120, 60 );
+		if ( is_wp_error( $rl ) ) {
+			return $this->wp_error_response( $rl );
+		}
 		$body = $this->body( $req );
 		return em_json_data( ( new \EscapeManager\Services\Pricing_Service() )->quote_event( $body ), 200 );
 	}

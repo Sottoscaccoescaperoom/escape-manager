@@ -70,4 +70,38 @@ abstract class Rest_Controller_Base {
 		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 400;
 		return em_json_error( $err->get_error_code(), $err->get_error_message(), $status );
 	}
+
+	/**
+	 * §SEC 2026-07-28 — Rate limit best-effort per IP sulle rotte PUBBLICHE
+	 * (preventivo, prenotazione pubblica): frena il brute-force dei codici
+	 * promo/voucher e lo spam. Finestra scorrevole via transient. Ritorna
+	 * WP_Error 429 al superamento, true altrimenti.
+	 *
+	 * @return true|\WP_Error
+	 */
+	protected function rate_limit( string $bucket, int $max = 40, int $window = 60 ) {
+		$key = 'em_rl_' . $bucket . '_' . md5( $this->client_ip() );
+		$n   = (int) get_transient( $key );
+		if ( $n >= $max ) {
+			return new \WP_Error( 'em_rate_limited', 'Troppe richieste, riprova tra poco.', array( 'status' => 429 ) );
+		}
+		set_transient( $key, $n + 1, $window );
+		return true;
+	}
+
+	/**
+	 * IP del chiamante: ULTIMO hop di X-Forwarded-For (scritto dal proxy fidato),
+	 * altrimenti REMOTE_ADDR. Il PRIMO valore di XFF è scritto dal client ed è
+	 * falsificabile, quindi non va usato.
+	 */
+	protected function client_ip(): string {
+		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+			$parts = array_map( 'trim', explode( ',', (string) wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) );
+			$last  = end( $parts );
+			if ( $last ) {
+				return $last;
+			}
+		}
+		return isset( $_SERVER['REMOTE_ADDR'] ) ? (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '0.0.0.0';
+	}
 }
