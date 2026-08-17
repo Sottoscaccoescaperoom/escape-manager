@@ -111,6 +111,30 @@ final class Booking_Service {
 			? Booking::STATUS_AWAITING_PAYMENT
 			: Booking::STATUS_CONFIRMED;
 
+		/**
+		 * §Doppia prenotazione 2026-08-17 — SI RICONTROLLA QUI, alla conferma.
+		 *
+		 * Il lock protegge dagli altri utenti del sito, ma NON da chi scrive sul
+		 * calendario da un'altra porta: il gestionale crea le prenotazioni della
+		 * reception via API, e fra il momento in cui il cliente blocca lo slot e
+		 * quello in cui conferma passano i minuti che gli servono per compilare
+		 * il modulo.
+		 *
+		 * È successo il 17/08/2026 su Occhio di Ra alle 17:30: la reception ha
+		 * inserito un turno alle 13:17:26, il cliente ha confermato il suo alle
+		 * 13:17:53 — ventisette secondi dopo — e nessuno dei due percorsi si è
+		 * accorto dell'altro. Due squadre diverse sulla stessa stanza alla stessa
+		 * ora, scoperte solo dalla segnalazione automatica del gestionale.
+		 */
+		if ( $this->bookings->has_overlap( (int) $room['id'], (string) $lock['start_datetime'], (string) $lock['end_datetime'] ) ) {
+			$this->locks->delete( (int) $lock['id'] );
+			return new \WP_Error(
+				'SLOT_TAKEN',
+				__( 'Questo orario è stato appena prenotato da qualcun altro. Scegli un altro orario: non ti abbiamo addebitato nulla.', 'escape-manager' ),
+				array( 'status' => 409 )
+			);
+		}
+
 		$booking_id = $this->bookings->create( array(
 			'booking_code'    => Booking::generate_code( em_setting( 'em_booking_code_prefix', 'EM' ) ),
 			'room_id'         => (int) $room['id'],
@@ -135,6 +159,36 @@ final class Booking_Service {
 			'source'          => 'public',
 			'customer_comment' => $payload['customer_comment'] ?? null,
 		) );
+
+		/**
+		 * §Doppia prenotazione 2026-08-17 — LA RETE SOTTO LA RETE.
+		 *
+		 * Il controllo qui sopra lascia aperta una finestra di millisecondi: due
+		 * richieste possono superarlo insieme e inserire entrambe. Invece di
+		 * bloccare le tabelle — costoso e facile da sbagliare — si guarda DOPO:
+		 * se sullo slot c'è finita anche un'altra prenotazione attiva, vince la
+		 * più vecchia e questa si annulla da sola.
+		 *
+		 * ⚠️ Il criterio è l'id più basso, non l'orario: due insert nello stesso
+		 * secondo hanno lo stesso `created_at`, e serve una regola che dia lo
+		 * stesso risultato a chiunque la applichi — altrimenti si annullano a
+		 * vicenda e la fascia resta vuota con due clienti convinti di averla.
+		 */
+		$conflitto = $this->bookings->has_overlap(
+			(int) $room['id'], (string) $lock['start_datetime'], (string) $lock['end_datetime'], (int) $booking_id
+		);
+		if ( $conflitto ) {
+			$this->bookings->update( (int) $booking_id, array(
+				'booking_status'  => Booking::STATUS_CANCELLED,
+				'internal_notes'  => 'Annullata: slot occupato da una prenotazione precedente (doppia prenotazione evitata).',
+			) );
+			$this->locks->delete( (int) $lock['id'] );
+			return new \WP_Error(
+				'SLOT_TAKEN',
+				__( 'Questo orario è stato appena prenotato da qualcun altro. Scegli un altro orario: non ti abbiamo addebitato nulla.', 'escape-manager' ),
+				array( 'status' => 409 )
+			);
+		}
 
 		$this->locks->delete( (int) $lock['id'] );
 		$this->customers->increment_booking_count( $customer_id, (int) $room['id'] );
@@ -224,6 +278,32 @@ final class Booking_Service {
 
 		if ( $this->bookings->has_overlap( $room_id, $start_utc, $end_utc ) ) {
 			return new \WP_Error( 'SLOT_UNAVAILABLE', __( 'Slot non disponibile.', 'escape-manager' ), array( 'status' => 409 ) );
+		}
+
+		/**
+		 * §Doppia prenotazione 2026-08-17 — ANCHE UN CLIENTE A META' MODULO OCCUPA.
+		 *
+		 * Questa è la porta da cui entrano le prenotazioni della reception. Finora
+		 * guardava solo le prenotazioni già confermate, non i lock: un cliente che
+		 * sul sito ha scelto lo slot e sta compilando i suoi dati era invisibile,
+		 * e la reception gli passava davanti senza saperlo. È esattamente ciò che
+		 * è successo il 17/08 su Occhio di Ra delle 17:30.
+		 *
+		 * Il blocco dura quanto il lock (minuti, non ore): il messaggio dice fino
+		 * a quando, perché «slot non disponibile» su una fascia che il calendario
+		 * mostra libera manderebbe la reception a cercare un guasto che non c'è.
+		 */
+		$lock_attivo = $this->locks->active_for_room_in_range( $room_id, $start_utc, $end_utc );
+		if ( ! empty( $lock_attivo ) ) {
+			$fino_a = (string) ( $lock_attivo[0]['expires_at'] ?? '' );
+			$ora    = $fino_a ? wp_date( 'H:i', strtotime( $fino_a . ' UTC' ) ) : '';
+			return new \WP_Error(
+				'SLOT_LOCKED',
+				$ora
+					? sprintf( __( 'Un cliente sta prenotando questo orario proprio adesso (dal sito). Se non conferma, la fascia si libera entro le %s.', 'escape-manager' ), $ora )
+					: __( 'Un cliente sta prenotando questo orario proprio adesso dal sito.', 'escape-manager' ),
+				array( 'status' => 409 )
+			);
 		}
 
 		$customer_data = (array) ( $payload['customer'] ?? array() );
