@@ -17,7 +17,26 @@ const LS_SESSION_KEY = 'em_booking_session_id';
 const LS_ACTIVE_LOCK = 'em_booking_active_lock';
 
 const DIFFICULTY = { 1: 'Facile', 2: 'Leggero', 3: 'Media', 4: 'Sopra la media', 5: 'Difficile' };
-const SLOT_TITLE = { locked: 'In prenotazione da altri', booked: 'Prenotato', blocked: 'Non disponibile' };
+const SLOT_TITLE = {
+	locked:   'In prenotazione da altri',
+	booked:   'Prenotato',
+	blocked:  'Non disponibile',
+	// §Chiamaci 2026-08-26 — Sotto il preavviso minimo per prenotare online.
+	too_soon: 'Troppo a ridosso per prenotare online — chiamaci per questo orario',
+};
+
+/**
+ * §Chiamaci 2026-08-26 — Il numero da chiamare per i turni troppo a ridosso.
+ *
+ * Vuoto = la cornetta NON compare e resta il lucchetto. Un pulsante che invita a
+ * chiamare e non chiama nessuno fa piu' danno del divieto: chi lo tocca pensa
+ * che il sito sia rotto.
+ */
+const CALL_PHONE = String(CONFIG.callPhone || '').trim();
+/** Per `tel:` servono solo cifre e l'eventuale +. */
+const CALL_HREF  = CALL_PHONE ? 'tel:' + CALL_PHONE.replace(/[^\d+]/g, '') : '';
+
+const ICON_PHONE = html`<svg class="emc-slot-phone-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/></svg>`;
 
 function getSessionId() {
 	let s = localStorage.getItem(LS_SESSION_KEY);
@@ -279,6 +298,34 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 	const slotDate = (slot.start || '').slice(0, 10);
 	const crossesDay = dayDate && slotDate && slotDate !== dayDate;
 	const hot = avail && slot.hot;
+
+	/**
+	 * §Chiamaci 2026-08-26 — CORNETTA al posto del lucchetto sui turni che il
+	 * preavviso minimo chiude, ma che al telefono si aprono spesso.
+	 *
+	 * ⚠️ E' un LINK, non un pulsante disabilitato: su telefono `tel:` fa partire
+	 * la chiamata con un tocco. Un pulsante che apre un messaggio da leggere e poi
+	 * copiare un numero e' un ostacolo in piu' proprio nel momento in cui la
+	 * persona vorrebbe giocare adesso.
+	 *
+	 * ⚠️ L'ORA RESTA VISIBILE. Il lucchetto la nasconde perche' non serve a
+	 * niente sapere l'ora di uno slot prenotato; qui invece e' l'informazione
+	 * principale: chi chiama deve poter dire "sono le 18:30 che mi interessano".
+	 */
+	if (slot.status === 'too_soon' && CALL_HREF) {
+		return html`
+			<a
+				key=${slot.start}
+				class="emc-slot is-call"
+				href=${CALL_HREF}
+				title=${SLOT_TITLE.too_soon}
+				aria-label=${`Chiama per prenotare alle ${formatTime(slot.start)}`}>
+				${ICON_PHONE}
+				<span class="emc-slot-time">${formatTime(slot.start)}</span>
+				${crossesDay ? html`<span class="emc-slot-date">${dayMonthShort(slotDate)}</span>` : ''}
+			</a>`;
+	}
+
 	return html`
 		<button
 			key=${slot.start}
@@ -292,6 +339,23 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 				${crossesDay ? html`<span class="emc-slot-date">${dayMonthShort(slotDate)}</span>` : ''}
 			` : html`<span class="emc-slot-lock">🔒</span>`}
 		</button>`;
+}
+
+/**
+ * §Chiamaci 2026-08-26 — La legenda della cornetta.
+ *
+ * ⚠️ Compare SOLO se in pagina c'e' almeno un turno con la cornetta. Una
+ * legenda sempre presente per un simbolo che spesso non c'e' e' rumore, e si
+ * impara a saltarla proprio nei giorni in cui servirebbe.
+ */
+function CallHint({ rooms }) {
+	if (!CALL_HREF) return '';
+	const neEsiste = (rooms || []).some(r => (r.slots || []).some(s => s.status === 'too_soon'));
+	if (!neEsiste) return '';
+	return html`<p class="emc-call-hint">
+		${ICON_PHONE}
+		<span>Gli orari con la cornetta sono troppo vicini per prenotarli qui: <strong>chiamaci</strong> e vediamo se riusciamo a organizzarci.</span>
+	</p>`;
 }
 
 // §Meta icone 2026-07-15 — piccole icone gialle per persone/durata/difficoltà.
@@ -486,6 +550,7 @@ function Step1_Calendar({ onPick }) {
 									: sortSlots(room.slots).map(slot => SlotChip({ room, slot, dayDate: selectedDate, onPick }))}
 							</div>
 						</div>`)}
+					<${CallHint} rooms=${dayRooms} />
 				</div>`}
 
 			${!loading && !error && view === 'week' && (weekRooms.length === 0
@@ -525,7 +590,8 @@ function Step1_Calendar({ onPick }) {
 											</div>
 										</div>`;
 								})}
-							</div>`}
+							</div>
+							<${CallHint} rooms=${data.flatMap(d => d.rooms || [])} />`}
 					</div>
 				</div>`)}
 

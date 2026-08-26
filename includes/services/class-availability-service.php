@@ -230,16 +230,34 @@ final class Availability_Service {
 			return array( 'status' => 'blocked' );
 		}
 
-		// 4) Slot nel passato o troppo a ridosso (anticipo minimo prenotazione)?
+		// 4) Slot nel passato, oppure troppo a ridosso (anticipo minimo)?
+		//
 		// §cutoff — `em_booking_cutoff_minutes`: minuti di anticipo richiesti per
-		// prenotare (es. 150 = 2h30). Uno slot entro quella finestra da adesso
-		// risulta "blocked" nel booking pubblico. Default 0 = solo slot passati.
+		// prenotare online (es. 120 = 2h), il tempo che serve per organizzare un
+		// master. Default 0 = solo gli slot passati sono chiusi.
+		//
+		// 🚨 §Chiamaci 2026-08-26 — DUE STATI DIVERSI, non piu' uno solo.
+		//
+		// Prima "passato" e "troppo presto" tornavano entrambi `blocked`, come la
+		// manutenzione. Ma sono cose opposte per chi guarda il sito: su un turno
+		// passato non c'e' niente da fare, mentre su uno di fra un'ora la risposta
+		// e' spesso si' — se il responsabile e' gia' in sede si organizza al volo.
+		// Quei turni li stavamo perdendo perche' il sito diceva soltanto "no".
+		//
+		// `too_soon` esiste per poterli mostrare in modo diverso: il widget ci
+		// mette una cornetta al posto del lucchetto e invita a chiamare.
+		//
+		// ⚠️ L'ordine conta: prima il passato. Uno slot di ieri e' anche "sotto il
+		// preavviso", e invitare a telefonare per un turno gia' andato sarebbe una
+		// presa in giro — piu' una telefonata inutile per chi risponde.
 		try {
 			$now    = new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
 			$cutoff = (int) em_setting( 'em_booking_cutoff_minutes', 0 );
-			$limit  = $cutoff > 0 ? $now->modify( "+{$cutoff} minutes" ) : $now;
-			if ( $start_utc < $limit ) {
+			if ( $start_utc < $now ) {
 				return array( 'status' => 'blocked' );
+			}
+			if ( $cutoff > 0 && $start_utc < $now->modify( "+{$cutoff} minutes" ) ) {
+				return array( 'status' => 'too_soon' );
 			}
 		} catch ( \Exception $e ) {}
 

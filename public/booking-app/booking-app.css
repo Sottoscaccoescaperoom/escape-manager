@@ -372,6 +372,44 @@
 }
 .emc-slot-lock { font-size: 0.95em; opacity: 0.5; }
 
+/*
+ * §Chiamaci 2026-08-26 — Turno sotto il preavviso minimo: si chiama.
+ *
+ * ⚠️ NON ha l'aspetto dello slot chiuso (tratteggiato e spento) ne' di quello
+ * libero (che promette una prenotazione in tre tocchi). E' una terza cosa e deve
+ * sembrarlo: bordo pieno e colore d'accento, perche' e' una porta aperta — solo
+ * di un altro tipo.
+ */
+.emc-slot.is-call {
+	cursor: pointer;
+	text-decoration: none;
+	background: rgba(232,162,61,0.10);
+	border-color: rgba(232,162,61,0.55);
+	color: #f0b969;
+	flex-direction: row;
+	gap: 0.35em;
+}
+.emc-slot.is-call:hover { background: rgba(232,162,61,0.18); border-color: #e8a23d; }
+.emc-slot.is-call:active { transform: scale(0.97); }
+.emc-slot.is-call .emc-slot-time { font-size: 0.95em; font-weight: 800; }
+.emc-slot-phone-ico { width: 15px; height: 15px; flex: none; }
+
+/*
+ * La legenda. Una cornetta da sola non dice che cosa fa: chi non la tocca non lo
+ * scopre, e chi la tocca lo scopre quando parte la chiamata — troppo tardi per
+ * essere una scelta.
+ */
+.emc-call-hint {
+	display: flex;
+	align-items: center;
+	gap: 0.45em;
+	margin-top: 0.6em;
+	font-size: 0.82em;
+	line-height: 1.35;
+	color: #d3a15f;
+}
+.emc-call-hint .emc-slot-phone-ico { width: 14px; height: 14px; opacity: 0.9; }
+
 /* slot "hot": orario più richiesto (statistiche storiche) */
 .emc-slot.is-hot {
 	border-color: #e8a23d;

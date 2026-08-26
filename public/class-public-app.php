@@ -122,6 +122,13 @@ final class Public_App {
 			// nel giorno) in cima con un boost pesato, senza seppellire le forti,
 			// ed evidenzia con un badge quelle con tanta disponibilità.
 			'promoteWeakRooms' => (bool) em_setting( 'em_promote_weak_rooms', false ),
+			// §Chiamaci 2026-08-26 — I turni sotto il preavviso minimo non sono
+			// prenotabili online, ma spesso lo sono per telefono: se il responsabile
+			// e' gia' in sede si organizza al volo. Il widget ci mette una cornetta
+			// al posto del lucchetto.
+			// ⚠️ Stringa vuota = niente cornetta, resta il lucchetto. Un pulsante
+			// che non chiama nessuno fa piu' danno del divieto.
+			'callPhone'    => trim( (string) em_setting( 'em_booking_phone', '' ) ),
 			// §Promo periodo — sconto % sui turni giocati in un intervallo, su stanze
 			// scelte. Il widget mostra un badge "-X%"; il totale è ricalcolato lato
 			// server (il badge è solo indicativo).

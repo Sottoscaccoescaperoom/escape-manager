@@ -23,6 +23,11 @@ final class Settings_Controller extends Rest_Controller_Base {
 		'em_email_from_name',
 		'em_email_from_address',
 		'em_booking_cutoff_minutes',
+		// §Chiamaci 2026-08-26 — Numero da chiamare per i turni troppo a ridosso
+		// per prenotare online. Se resta vuoto il widget NON mostra la cornetta e
+		// tiene il lucchetto: un invito a chiamare senza un numero da chiamare e'
+		// peggio di nessun invito.
+		'em_booking_phone',
 		'em_promote_weak_rooms',
 		'em_promo_enabled',
 		'em_promo_percent',
