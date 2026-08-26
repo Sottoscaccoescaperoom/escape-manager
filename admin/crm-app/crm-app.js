@@ -1270,6 +1270,24 @@ function SettingsPage() {
 			<h2>Booking pubblico</h2>
 			<table class="form-table">
 				<tr>
+					<th>Numero da chiamare</th>
+					<td>
+						<input type="tel" style="width:16em" placeholder="+39 333 139 5516"
+							value=${data.em_booking_phone || ''}
+							onInput=${e => set('em_booking_phone', e.target.value)} />
+						<p class="description">
+							Sui turni troppo a ridosso per prenotare online il sito mostra una
+							<strong>cornetta</strong> al posto del lucchetto: toccandola parte una
+							telefonata normale a questo numero. Quei turni al telefono spesso si
+							aprono, e un no secco li faceva perdere.
+							<br />
+							<strong>Se questo campo resta vuoto la cornetta NON compare</strong> e
+							quei turni restano col lucchetto: un invito a chiamare senza un numero
+							da chiamare è peggio di nessun invito.
+						</p>
+					</td>
+				</tr>
+				<tr>
 					<th>Promuovi stanze deboli</th>
 					<td>
 						<label><input type="checkbox" checked=${!!data.em_promote_weak_rooms} onChange=${e => set('em_promote_weak_rooms', e.target.checked ? 1 : 0)} /> Mostra più in alto le stanze con poche prenotazioni nel giorno (boost pesato, senza seppellire le più richieste) ed evidenziale con un badge "Disponibilità immediata".</label>
