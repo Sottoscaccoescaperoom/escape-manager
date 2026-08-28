@@ -292,17 +292,51 @@ final class Booking_Service {
 		 * Il blocco dura quanto il lock (minuti, non ore): il messaggio dice fino
 		 * a quando, perché «slot non disponibile» su una fascia che il calendario
 		 * mostra libera manderebbe la reception a cercare un guasto che non c'è.
+		 *
+		 * 🚨 §2026-08-28 — IL MESSAGGIO DICEVA UN'ORA GIÀ PASSATA.
+		 *
+		 * `wp_date()` formatta col fuso di WordPress, qui UTC: alle 12:57 la
+		 * reception ha letto «si libera entro le 11:01». Un orario nel passato
+		 * significa una cosa sola per chi legge — è rotto — e infatti il master
+		 * ha smesso di riprovare: quella prenotazione (Redroom 29/08 22:00) non
+		 * è mai entrata. Ora l'ora è quella italiana (`em_local_time`) e accanto
+		 * ci sono i MINUTI che mancano, che restano leggibili anche se un giorno
+		 * il fuso tornasse storto.
+		 *
+		 * E se il lock è dello STESSO numero che la reception sta inserendo, lo
+		 * dice: non è una gara con uno sconosciuto, è il cliente al telefono che
+		 * sta prenotando da solo. Aspettare è la risposta giusta.
 		 */
 		$lock_attivo = $this->locks->active_for_room_in_range( $room_id, $start_utc, $end_utc );
 		if ( ! empty( $lock_attivo ) ) {
-			$fino_a = (string) ( $lock_attivo[0]['expires_at'] ?? '' );
-			$ora    = $fino_a ? wp_date( 'H:i', strtotime( $fino_a . ' UTC' ) ) : '';
+			$fino_a  = (string) ( $lock_attivo[0]['expires_at'] ?? '' );
+			$ora     = em_local_time( $fino_a );
+			$minuti  = $fino_a ? (int) ceil( ( strtotime( $fino_a . ' UTC' ) - time() ) / 60 ) : 0;
+			$minuti  = max( 1, $minuti );
+
+			$solo_cifre  = static fn( $v ) => preg_replace( '/\D/', '', (string) $v );
+			$tel_lock    = $solo_cifre( $lock_attivo[0]['customer_phone'] ?? '' );
+			$tel_payload = $solo_cifre( ( (array) ( $payload['customer'] ?? array() ) )['phone'] ?? '' );
+			$stesso_cliente = strlen( $tel_lock ) >= 8 && strlen( $tel_payload ) >= 8
+				&& substr( $tel_lock, -8 ) === substr( $tel_payload, -8 );
+
+			if ( $stesso_cliente ) {
+				$messaggio = $ora
+					? sprintf( __( 'Questo stesso cliente sta prenotando l\'orario dal sito proprio adesso: lascialo finire (ancora %1$d min, entro le %2$s) invece di inserirlo tu, o vi sovrapponete.', 'escape-manager' ), $minuti, $ora )
+					: __( 'Questo stesso cliente sta prenotando l\'orario dal sito proprio adesso: lascialo finire invece di inserirlo tu.', 'escape-manager' );
+			} else {
+				$messaggio = $ora
+					? sprintf( __( 'Un cliente sta prenotando questo orario proprio adesso dal sito. Se non conferma, la fascia si libera fra %1$d min (entro le %2$s): riprova allora.', 'escape-manager' ), $minuti, $ora )
+					: __( 'Un cliente sta prenotando questo orario proprio adesso dal sito: riprova fra qualche minuto.', 'escape-manager' );
+			}
+
 			return new \WP_Error(
 				'SLOT_LOCKED',
-				$ora
-					? sprintf( __( 'Un cliente sta prenotando questo orario proprio adesso (dal sito). Se non conferma, la fascia si libera entro le %s.', 'escape-manager' ), $ora )
-					: __( 'Un cliente sta prenotando questo orario proprio adesso dal sito.', 'escape-manager' ),
-				array( 'status' => 409 )
+				$messaggio,
+				array(
+					'status'     => 409,
+					'expires_at' => $fino_a,
+				)
 			);
 		}
 

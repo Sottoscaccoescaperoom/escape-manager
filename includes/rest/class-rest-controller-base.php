@@ -68,7 +68,12 @@ abstract class Rest_Controller_Base {
 	protected function wp_error_response( \WP_Error $err ): \WP_REST_Response {
 		$data = $err->get_error_data();
 		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 400;
-		return em_json_error( $err->get_error_code(), $err->get_error_message(), $status );
+		// §2026-08-28 — Il contorno dell'errore arriva a chi chiama: `status` resta
+		// il codice HTTP, tutto il resto (es. `expires_at` di un lock) diventa
+		// `details`. Prima veniva buttato via e il client poteva solo leggere la
+		// frase, senza mai poterci fare qualcosa (un countdown, un riprova).
+		$details = is_array( $data ) ? array_diff_key( $data, array( 'status' => null ) ) : array();
+		return em_json_error( $err->get_error_code(), $err->get_error_message(), $status, $details );
 	}
 
 	/**
