@@ -307,7 +307,23 @@ final class Booking_Service {
 		 * dice: non è una gara con uno sconosciuto, è il cliente al telefono che
 		 * sta prenotando da solo. Aspettare è la risposta giusta.
 		 */
-		$lock_attivo = $this->locks->active_for_room_in_range( $room_id, $start_utc, $end_utc );
+		/**
+		 * §Precedenza alla reception 2026-08-28 — IL PROPRIO LOCK NON CONTA.
+		 *
+		 * Da oggi la dashboard prende un lock appena il master apre lo slot, per
+		 * tenerlo fermo mentre inserisce i dati. Senza questa riga sarebbe il
+		 * master a bloccare se stesso: cinque minuti dopo averlo aperto,
+		 * salvando, si sentirebbe rispondere «un cliente sta prenotando questo
+		 * orario proprio adesso» — e il cliente sarebbe lui.
+		 *
+		 * La sessione arriva nel payload (`lock_session_id`): e' la stessa con
+		 * cui la dashboard ha preso il lock.
+		 */
+		$mia_sessione = trim( (string) ( $payload['lock_session_id'] ?? '' ) );
+		$lock_attivo  = array_values( array_filter(
+			$this->locks->active_for_room_in_range( $room_id, $start_utc, $end_utc ),
+			static fn( $l ) => '' === $mia_sessione || ( $l['session_id'] ?? '' ) !== $mia_sessione
+		) );
 		if ( ! empty( $lock_attivo ) ) {
 			$fino_a  = (string) ( $lock_attivo[0]['expires_at'] ?? '' );
 			$ora     = em_local_time( $fino_a );

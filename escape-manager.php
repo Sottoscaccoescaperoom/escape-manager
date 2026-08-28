@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * un aggiornamento che risulta fatto e non si vede da nessuna parte, che è il
  * modo peggiore di fallire perché nessuno lo cerca più.
  */
-define( 'EM_VERSION', '0.9.27' );
+define( 'EM_VERSION', '0.9.28' );
 define( 'EM_DB_VERSION', '6' );
 define( 'EM_PLUGIN_FILE', __FILE__ );
 define( 'EM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

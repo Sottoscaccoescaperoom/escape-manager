@@ -30,7 +30,7 @@ final class Lock_Service {
 	 *
 	 * @return array{lock_id:int, expires_at:string, ttl_seconds:int}|\WP_Error
 	 */
-	public function acquire( int $room_id, string $start_utc, string $session_id, ?string $phone = null ): array|\WP_Error {
+	public function acquire( int $room_id, string $start_utc, string $session_id, ?string $phone = null, array $opts = array() ): array|\WP_Error {
 		global $wpdb;
 
 		$room = $this->rooms->find( $room_id );
@@ -38,7 +38,37 @@ final class Lock_Service {
 			return new \WP_Error( 'ROOM_NOT_FOUND', __( 'Stanza non trovata o disattivata.', 'escape-manager' ), array( 'status' => 404 ) );
 		}
 
-		$ttl_minutes  = (int) em_setting( 'em_lock_ttl_minutes', 10 );
+		/**
+		 * §Precedenza alla reception 2026-08-28 — Il banco batte il sito.
+		 *
+		 * ════════════════════════════════════════════════════════════════════
+		 * PERCHE' IL MASTER DEVE POTER SCAVALCARE
+		 * ════════════════════════════════════════════════════════════════════
+		 *
+		 * Il proprietario: «quando un master seleziona uno slot dalla dashboard
+		 * per creare una prenotazione, deve avere la precedenza su chi in quel
+		 * momento sta guardando lo stesso slot sul sito».
+		 *
+		 * Non e' una preferenza di comodo: il master ha in mano un cliente che
+		 * sta parlando, spesso al telefono o davanti al banco, e a cui sta per
+		 * dire «sì, alle 21 c'è posto». Chi sul sito ha aperto quello slot
+		 * potrebbe non concludere mai — la maggioranza dei lock scade senza
+		 * prenotazione. Far perdere una vendita certa per proteggere una
+		 * possibile e' il compromesso sbagliato.
+		 *
+		 * ⚠️ Si scavalca un LOCK, mai una PRENOTAZIONE. Una prenotazione
+		 * confermata e' un impegno preso con qualcuno: quella resta 409 per
+		 * tutti, master compreso.
+		 *
+		 * ⚠️ Chi scavalca lo viene a sapere: `preempted` torna a chi chiama,
+		 * perche' la dashboard possa dirlo al master. Il caso in cui aspettare
+		 * e' giusto esiste — e' il cliente al telefono che sta prenotando da
+		 * solo mentre parla con la reception — e chi ha in mano la situazione
+		 * puo' riconoscerlo solo se sa che e' successo.
+		 */
+		$preempt      = ! empty( $opts['preempt'] );
+		$ttl_richiesto = isset( $opts['ttl_minutes'] ) ? (int) $opts['ttl_minutes'] : 0;
+		$ttl_minutes  = $ttl_richiesto > 0 ? $ttl_richiesto : (int) em_setting( 'em_lock_ttl_minutes', 10 );
 		$ttl_minutes  = max( 1, min( 60, $ttl_minutes ) );
 		$ttl_seconds  = $ttl_minutes * 60;
 
@@ -73,9 +103,21 @@ final class Lock_Service {
 				$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $mutex_key ) );
 				return new \WP_Error( 'SLOT_UNAVAILABLE', __( 'Slot già prenotato.', 'escape-manager' ), array( 'status' => 409 ) );
 			}
+			$preempted = 0;
 			if ( $this->locks->has_active_overlap( $room_id, $start_utc, $end_utc, $session_id ) ) {
-				$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $mutex_key ) );
-				return new \WP_Error( 'SLOT_UNAVAILABLE', __( 'Slot già in fase di prenotazione da altri.', 'escape-manager' ), array( 'status' => 409 ) );
+				if ( ! $preempt ) {
+					$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $mutex_key ) );
+					return new \WP_Error( 'SLOT_UNAVAILABLE', __( 'Slot già in fase di prenotazione da altri.', 'escape-manager' ), array( 'status' => 409 ) );
+				}
+				// Si tolgono di mezzo i lock altrui su questo slot, uno per uno:
+				// quelli di questa stessa sessione non si contano come scavalcati.
+				foreach ( $this->locks->active_for_room_in_range( $room_id, $start_utc, $end_utc ) as $altrui ) {
+					if ( ( $altrui['session_id'] ?? '' ) === $session_id ) {
+						continue;
+					}
+					$this->locks->delete( (int) $altrui['id'] );
+					$preempted++;
+				}
 			}
 
 			$lock_id = $this->locks->create( array(
@@ -94,6 +136,9 @@ final class Lock_Service {
 				'expires_at'  => $expires_str,
 				'ttl_seconds' => $ttl_seconds,
 				'end_utc'     => $end_utc,
+				// Quanti stavano guardando questo slot dal sito e sono stati
+				// scavalcati: zero nel caso normale.
+				'preempted'   => $preempted,
 			);
 		} catch ( \Throwable $t ) {
 			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $mutex_key ) );

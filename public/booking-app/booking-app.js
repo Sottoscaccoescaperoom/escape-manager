@@ -347,6 +347,14 @@ function SlotChip({ room, slot, dayDate, onPick }) {
  * ⚠️ Compare SOLO se in pagina c'e' almeno un turno con la cornetta. Una
  * legenda sempre presente per un simbolo che spesso non c'e' e' rumore, e si
  * impara a saltarla proprio nei giorni in cui servirebbe.
+ *
+ * ⚠️ §2026-08-28 — VA SOPRA GLI ORARI, non sotto.
+ *
+ * Stava in fondo all'elenco: si leggeva dopo aver gia' incontrato la cornetta,
+ * cioe' dopo essersela spiegata da soli (o dopo aver concluso che quell'orario
+ * era occupato e aver chiuso la pagina). Una legenda serve PRIMA del simbolo
+ * che spiega. Con tre battiti all'apertura per prendere l'occhio una volta —
+ * e poi ferma, che un lampeggio perpetuo si impara a ignorare.
  */
 function CallHint({ rooms }) {
 	if (!CALL_HREF) return '';
@@ -540,6 +548,7 @@ function Step1_Calendar({ onPick }) {
 
 			${!loading && !error && view === 'day' && html`
 				<div class="emc-body">
+					<${CallHint} rooms=${dayRooms} />
 					${dayRooms.length === 0 && html`<div class="emc-empty">Nessuna stanza disponibile per questa data.</div>`}
 					${dayRooms.map(room => html`
 						<div class="emc-room" key=${room.room_id}>
@@ -550,7 +559,6 @@ function Step1_Calendar({ onPick }) {
 									: sortSlots(room.slots).map(slot => SlotChip({ room, slot, dayDate: selectedDate, onPick }))}
 							</div>
 						</div>`)}
-					<${CallHint} rooms=${dayRooms} />
 				</div>`}
 
 			${!loading && !error && view === 'week' && (weekRooms.length === 0
@@ -574,6 +582,7 @@ function Step1_Calendar({ onPick }) {
 					<div class="emc-main">
 						${activeRoom && html`
 							<${RoomHead} room=${activeRoom} />
+							<${CallHint} rooms=${data.flatMap(d => d.rooms || [])} />
 							<div class="emc-week-days">
 								${data.map(day => {
 									const r = day.rooms.find(x => x.room_id === activeRoom.room_id) || { slots: [] };
@@ -590,8 +599,7 @@ function Step1_Calendar({ onPick }) {
 											</div>
 										</div>`;
 								})}
-							</div>
-							<${CallHint} rooms=${data.flatMap(d => d.rooms || [])} />`}
+							</div>`}
 					</div>
 				</div>`)}
 

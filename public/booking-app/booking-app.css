@@ -403,12 +403,50 @@
 	display: flex;
 	align-items: center;
 	gap: 0.45em;
-	margin-top: 0.6em;
+	/*
+	 * §2026-08-28 — SOPRA gli orari, non sotto.
+	 *
+	 * Stava in fondo all'elenco, cioè dopo il momento in cui la cornetta si
+	 * incontra: chi la vedeva l'aveva già interpretata a modo suo, e chi
+	 * scorreva fino in fondo aveva gia' scelto. Una legenda serve PRIMA del
+	 * simbolo che spiega.
+	 */
+	margin: 0 0 0.75em;
+	padding: 0.5em 0.7em;
+	border: 1px solid rgba(211, 161, 95, 0.35);
+	border-radius: 8px;
+	background: rgba(211, 161, 95, 0.07);
 	font-size: 0.82em;
 	line-height: 1.35;
 	color: #d3a15f;
 }
 .emc-call-hint .emc-slot-phone-ico { width: 14px; height: 14px; opacity: 0.9; }
+
+/*
+ * §2026-08-28 — Il richiamo che si spegne.
+ *
+ * ⚠️ TRE battiti e basta. Un lampeggio infinito su una pagina dove si sta
+ * scegliendo un orario diventa rumore: si impara a non guardare proprio la
+ * riga che serve, ed e' l'effetto opposto di quello voluto. Tre battiti
+ * prendono l'occhio la prima volta che la pagina compare, poi la frase resta
+ * lì, leggibile, per chi la cerca.
+ */
+@keyframes emcCallHintPulse {
+	0%, 100% { border-color: rgba(211, 161, 95, 0.35); background: rgba(211, 161, 95, 0.07); }
+	50%      { border-color: rgba(232, 162, 61, 0.95); background: rgba(232, 162, 61, 0.20); }
+}
+.emc-call-hint {
+	animation: emcCallHintPulse 1.15s ease-in-out 3;
+}
+.emc-call-hint .emc-slot-phone-ico { animation: emcCallHintPulse 1.15s ease-in-out 3; }
+
+/*
+ * ⚠️ Chi ha chiesto meno animazioni non le riceve. Qui non si perde niente:
+ * il riquadro colorato distingue la frase anche da fermo.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.emc-call-hint, .emc-call-hint .emc-slot-phone-ico { animation: none; }
+}
 
 /* slot "hot": orario più richiesto (statistiche storiche) */
 .emc-slot.is-hot {

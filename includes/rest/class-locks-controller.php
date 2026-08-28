@@ -42,7 +42,26 @@ final class Locks_Controller extends Rest_Controller_Base {
 			return em_json_error( 'VALIDATION', __( 'start_datetime non valido.', 'escape-manager' ), 400 );
 		}
 
-		$result = $this->service->acquire( $room_id, $utc, $session_id, $phone );
+		/**
+		 * §Precedenza alla reception 2026-08-28 — Le opzioni le puo' chiedere
+		 * SOLO chi arriva dal server della dashboard.
+		 *
+		 * ⚠️ Questa rotta e' pubblica: la usa il widget del sito. Un TTL a
+		 * piacere lasciato al pubblico sarebbe un modo per bloccare uno slot
+		 * un'ora con una richiesta sola, e una precedenza a piacere farebbe
+		 * scavalcare chiunque a chiunque — cioe' il contrario di quello che
+		 * questa precedenza serve a garantire. La chiave X-EM-Api-Key ce l'ha
+		 * solo il proxy della dashboard, che gira sul server.
+		 */
+		$opts = array();
+		if ( self::has_valid_api_key() || current_user_can( 'em_manage_bookings' ) ) {
+			if ( isset( $body['ttl_minutes'] ) ) {
+				$opts['ttl_minutes'] = (int) $body['ttl_minutes'];
+			}
+			$opts['preempt'] = ! empty( $body['preempt'] );
+		}
+
+		$result = $this->service->acquire( $room_id, $utc, $session_id, $phone, $opts );
 		if ( is_wp_error( $result ) ) {
 			return $this->wp_error_response( $result );
 		}
