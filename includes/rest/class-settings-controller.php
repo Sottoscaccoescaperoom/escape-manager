@@ -28,6 +28,10 @@ final class Settings_Controller extends Rest_Controller_Base {
 		// tiene il lucchetto: un invito a chiamare senza un numero da chiamare e'
 		// peggio di nessun invito.
 		'em_booking_phone',
+		// §Cornette misurate 2026-08-28 — Dove il widget segnala che qualcuno ha
+		// premuto la cornetta di uno slot. Vuoto = non si misura niente, e la
+		// cornetta continua a funzionare esattamente come prima.
+		'em_track_url',
 		'em_promote_weak_rooms',
 		'em_promo_enabled',
 		'em_promo_percent',

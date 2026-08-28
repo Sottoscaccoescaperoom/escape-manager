@@ -129,6 +129,15 @@ final class Public_App {
 			// ⚠️ Stringa vuota = niente cornetta, resta il lucchetto. Un pulsante
 			// che non chiama nessuno fa piu' danno del divieto.
 			'callPhone'    => trim( (string) em_setting( 'em_booking_phone', '' ) ),
+			// §Cornette misurate 2026-08-28 — Dove segnalare che una cornetta e' stata
+			// premuta. Serve a rispondere a una domanda che finora non aveva risposta:
+			// quanti, fra quelli che vedono un turno troppo a ridosso, provano davvero
+			// a chiamare.
+			//
+			// ⚠️ Stringa vuota = non si misura, e non cambia niente per chi naviga.
+			// Il segnale parte DOPO che il link ha gia' fatto il suo lavoro: misurare
+			// non deve poter rompere una telefonata.
+			'trackUrl'     => trim( (string) em_setting( 'em_track_url', 'https://app.sottoscacco.it/api/analytics/track' ) ),
 			// §Promo periodo — sconto % sui turni giocati in un intervallo, su stanze
 			// scelte. Il widget mostra un badge "-X%"; il totale è ricalcolato lato
 			// server (il badge è solo indicativo).

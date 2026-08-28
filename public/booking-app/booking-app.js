@@ -38,6 +38,54 @@ const CALL_HREF  = CALL_PHONE ? 'tel:' + CALL_PHONE.replace(/[^\d+]/g, '') : '';
 
 const ICON_PHONE = html`<svg class="emc-slot-phone-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/></svg>`;
 
+/**
+ * §Cornette misurate 2026-08-28 — Segnala che qualcuno ha premuto la cornetta.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ * LA CORNETTA ESISTE DAL 26/08 E NESSUNO SA SE LA PREMONO
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * Era un `<a href="tel:">` e basta: nessuna traccia. Non si poteva dire se
+ * quel invito serva a qualcosa, e quindi nemmeno se convenga abbassare il
+ * preavviso minimo o tenerlo dov'e'.
+ *
+ * ⚠️ `sendBeacon` è fire-and-forget e NON blocca la navigazione: il `tel:`
+ * parte comunque. Nessun `await`, nessun `preventDefault`, e tutto avvolto in
+ * un try: se il segnale fallisce, fallisce da solo e in silenzio. Una
+ * telefonata persa per colpa di una statistica sarebbe il contrario di quello
+ * che si sta cercando di misurare.
+ *
+ * ⚠️ Si manda anche `device`. Da computer un `tel:` non chiama nessuno: un
+ * clic da desktop e uno da telefono NON sono la stessa intenzione, e sommarli
+ * gonfierebbe il numero proprio dalla parte sbagliata.
+ *
+ * ⚠️ Non si manda niente di personale: nome, telefono e mail non sono ancora
+ * stati chiesti a nessuno in questo punto del percorso, e non devono esserlo.
+ */
+function segnalaClicCornetta(room, slot) {
+	const url = String(CONFIG.trackUrl || '').trim();
+	if (!url) return;
+	try {
+		const corpo = JSON.stringify({
+			type: 'clic_cornetta',
+			sid: getSessionId(),
+			path: location.pathname + location.search,
+			referrer: document.referrer || null,
+			title: document.title || null,
+			device: matchMedia('(pointer: coarse)').matches ? 'mobile' : 'desktop',
+			stanza: (room && room.room_name) || null,
+			slot: (slot && slot.start) || null,
+		});
+		// text/plain: richiesta "semplice", niente preflight CORS.
+		const ok = navigator.sendBeacon && navigator.sendBeacon(url, new Blob([corpo], { type: 'text/plain' }));
+		if (!ok) {
+			// ⚠️ `keepalive` serve perche' la pagina puo' sparire subito dopo: senza,
+			// il browser annulla la richiesta mentre parte la chiamata.
+			fetch(url, { method: 'POST', body: corpo, keepalive: true, mode: 'no-cors' }).catch(() => {});
+		}
+	} catch (e) { /* misurare non deve mai rompere il link */ }
+}
+
 function getSessionId() {
 	let s = localStorage.getItem(LS_SESSION_KEY);
 	if (!s) {
@@ -319,6 +367,7 @@ function SlotChip({ room, slot, dayDate, onPick }) {
 				class="emc-slot is-call"
 				href=${CALL_HREF}
 				title=${SLOT_TITLE.too_soon}
+				onClick=${() => segnalaClicCornetta(room, slot)}
 				aria-label=${`Chiama per prenotare alle ${formatTime(slot.start)}`}>
 				${ICON_PHONE}
 				<span class="emc-slot-time">${formatTime(slot.start)}</span>
