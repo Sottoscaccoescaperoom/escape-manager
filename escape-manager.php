@@ -3,7 +3,7 @@
  * Plugin Name:       Escape Manager
  * Plugin URI:        https://example.com/escape-manager
  * Description:       Sistema proprietario di gestione escape room: prenotazioni, CRM, calendario operativo, clienti, staff, pagamenti.
- * Version:           0.9.29
+ * Version:           0.9.30
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Luca D.
@@ -23,14 +23,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * ⚠️ QUESTO NUMERO VA ALZATO A OGNI RILASCIO, SEMPRE.
  *
- * Non è un'etichetta: è quello che WordPress appende ai file (`?ver=0.9.29`) e
+ * Non è un'etichetta: è quello che WordPress appende ai file (`?ver=0.9.30`) e
  * quindi l'unica cosa che dice al browser di un cliente «questo file è
  * cambiato, riscaricalo». Lasciandolo fermo si carica il plugin nuovo sul
  * server e i clienti continuano a vedere quello vecchio, dalla loro cache —
  * un aggiornamento che risulta fatto e non si vede da nessuna parte, che è il
  * modo peggiore di fallire perché nessuno lo cerca più.
  */
-define( 'EM_VERSION', '0.9.29' );
+define( 'EM_VERSION', '0.9.30' );
 define( 'EM_DB_VERSION', '6' );
 define( 'EM_PLUGIN_FILE', __FILE__ );
 define( 'EM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

@@ -135,6 +135,60 @@ final class Booking_Service {
 			);
 		}
 
+		/**
+		 * 🚨 §Prenotato sotto il preavviso 2026-08-31 — IL PREAVVISO MINIMO SI
+		 * RICONTROLLA QUI.
+		 *
+		 * ══════════════════════════════════════════════════════════════════
+		 * IL CONTROLLO ESISTEVA IN UN POSTO SOLO: MENTRE SI DISEGNA IL CALENDARIO
+		 * ══════════════════════════════════════════════════════════════════
+		 *
+		 * `compute_status()` marca `too_soon` gli slot troppo a ridosso e il
+		 * widget ci mette la cornetta. Ma quel controllo veniva fatto SOLO al
+		 * momento di mostrare gli orari: chi teneva la pagina aperta, o ci
+		 * metteva qualche minuto a compilare il modulo, confermava uno slot che
+		 * nel frattempo era diventato non prenotabile — e nessuno lo fermava.
+		 *
+		 * Segnalato il 30/08: due gruppi si sono presentati avendo prenotato da
+		 * soli il turno delle 23:30 alle 21:50 e alle 22:10.
+		 *
+		 * ⚠️ Vale la stessa logica del calendario, non una simile: si legge lo
+		 * stesso `em_booking_cutoff_minutes` e si confronta in UTC come fa
+		 * `compute_status`. Due regole scritte due volte per la stessa cosa
+		 * finiscono per rispondere in modo diverso.
+		 *
+		 * ⚠️ Il messaggio invita a TELEFONARE e non dice soltanto no: sotto il
+		 * preavviso la risposta è spesso sì, se il responsabile è già in sede.
+		 * È la stessa ragione per cui il calendario mostra la cornetta invece del
+		 * lucchetto — quei turni non vanno persi, vanno gestiti al telefono.
+		 */
+		try {
+			$cutoff_min = (int) em_setting( 'em_booking_cutoff_minutes', 0 );
+			if ( $cutoff_min > 0 ) {
+				$adesso     = new \DateTimeImmutable( 'now', new \DateTimeZone( 'UTC' ) );
+				$inizio_utc = new \DateTimeImmutable( (string) $lock['start_datetime'], new \DateTimeZone( 'UTC' ) );
+				if ( $inizio_utc < $adesso->modify( "+{$cutoff_min} minutes" ) ) {
+					$this->locks->delete( (int) $lock['id'] );
+					$tel = trim( (string) em_setting( 'em_booking_phone', '' ) );
+					return new \WP_Error(
+						'TOO_SOON',
+						$tel
+							? sprintf(
+								/* translators: %s: numero di telefono */
+								__( 'Questo orario è ormai troppo vicino per prenotarlo online. Chiamaci al %s: se riusciamo a organizzarci lo teniamo per te.', 'escape-manager' ),
+								$tel
+							)
+							: __( 'Questo orario è ormai troppo vicino per prenotarlo online. Chiamaci e vediamo se riusciamo a organizzarci.', 'escape-manager' ),
+						array( 'status' => 409 )
+					);
+				}
+			}
+		} catch ( \Exception $e ) {
+			// ⚠️ Se il confronto fallisce NON si blocca la prenotazione: un errore
+			// di data non deve impedire a un cliente di prenotare un turno che
+			// magari e' fra tre giorni.
+		}
+
 		$booking_id = $this->bookings->create( array(
 			'booking_code'    => Booking::generate_code( em_setting( 'em_booking_code_prefix', 'EM' ) ),
 			'room_id'         => (int) $room['id'],
