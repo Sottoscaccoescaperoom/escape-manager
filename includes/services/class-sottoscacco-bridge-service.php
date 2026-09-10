@@ -169,6 +169,102 @@ final class Sottoscacco_Bridge_Service {
 		return $payload;
 	}
 
+	/**
+	 * 🚨 §Un calendario solo 2026-09-10 — LO SLOT È LIBERO ANCHE PER IL
+	 * GESTIONALE?
+	 *
+	 * ═════════════════════════════════════════════════════════════════
+	 * I CALENDARI SONO DUE, E FINORA CIASCUNO GUARDAVA SOLO IL PROPRIO
+	 * ═════════════════════════════════════════════════════════════════
+	 *
+	 * Chiesto dal titolare: «come si può fisicamente far prenotare due persone
+	 * nello stesso turno? Il primo che prenota blocca il turno per tutti».
+	 *
+	 * Il controllo `has_overlap()` qui sopra guarda la tabella DI QUESTO SITO, che
+	 * è una copia tenuta allineata da messaggi. Se un messaggio si perde o arriva
+	 * sbagliato — il 10/09/2026 uno è arrivato con l'orario vecchio — la copia
+	 * dice «libero» di una casella che in reception è già occupata, e il sito la
+	 * vende in perfetta buona fede.
+	 *
+	 * Qui si chiede all'ALTRO calendario, che è quello dove lavora la reception.
+	 *
+	 * ⚠️ RISPOSTA A TRE VALORI, e la terza è quella che conta:
+	 *   true  = occupato        → non si conferma
+	 *   false = libero          → si prosegue
+	 *   null  = non lo sappiamo → si prosegue lo stesso
+	 *
+	 * 🚨 IL `null` NON BLOCCA, ed è una scelta deliberata. Se il gestionale non
+	 * risponde — è in aggiornamento, la rete fa i capricci — rifiutare vorrebbe
+	 * dire spegnere le vendite online a ogni nostro intoppo. È lo stesso
+	 * compromesso già scelto dal titolare per la reception: «far perdere una
+	 * vendita certa per proteggerne una possibile è il compromesso sbagliato». Nel
+	 * dubbio si vende, e il controllo automatico del gestionale se ne accorgerà
+	 * entro mezz'ora — cioè si torna al comportamento di prima, non peggio.
+	 *
+	 * ⚠️ TIMEOUT CORTO (3 secondi). Dall'altra parte c'è un cliente fermo sul
+	 * bottone «conferma»: un'attesa lunga è un carrello abbandonato, e il valore
+	 * di questo controllo non vale dieci secondi di clessidra.
+	 *
+	 * ⚠️ L'indirizzo si RICAVA da quello del webhook invece di essere un'altra
+	 * impostazione da compilare: un secondo campo da configurare a mano è un
+	 * secondo campo che qualcuno dimenticherà, e questo controllo si spegnerebbe
+	 * in silenzio.
+	 */
+	public function slot_occupato_nel_gestionale( array $room, string $start_datetime_utc ): ?bool {
+		$url    = (string) em_setting( 'em_sottoscacco_webhook_url', '' );
+		$secret = (string) em_setting( 'em_sottoscacco_webhook_secret', '' );
+		if ( ! $url || ! $secret ) {
+			return null; // ponte non configurato: non sappiamo niente, non blocchiamo.
+		}
+
+		$parti = wp_parse_url( $url );
+		if ( empty( $parti['scheme'] ) || empty( $parti['host'] ) ) {
+			return null;
+		}
+		$endpoint = $parti['scheme'] . '://' . $parti['host']
+			. ( empty( $parti['port'] ) ? '' : ':' . $parti['port'] )
+			. '/api/disponibilita-slot';
+
+		$iso = '';
+		try {
+			$iso = ( new \DateTimeImmutable( $start_datetime_utc, new \DateTimeZone( 'UTC' ) ) )
+				->format( 'Y-m-d\TH:i:s.000\Z' );
+		} catch ( \Exception $e ) {
+			return null;
+		}
+
+		$response = wp_remote_post( $endpoint, array(
+			'timeout' => 3,
+			'headers' => array(
+				'x-em-bridge-secret' => $secret,
+				'Content-Type'       => 'application/json',
+			),
+			'body'    => wp_json_encode( array(
+				'roomName'    => $room['name'] ?? '',
+				'roomId'      => $room['slug'] ?? '',
+				'scheduledAt' => $iso,
+			) ),
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+
+		$dati = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $dati ) || ! array_key_exists( 'libero', $dati ) ) {
+			return null;
+		}
+		// ⚠️ `libero: null` è il «non lo sappiamo» del gestionale: si propaga come
+		// null, NON come false. Confonderlo con «occupato» bloccherebbe le vendite.
+		if ( null === $dati['libero'] ) {
+			return null;
+		}
+		return ! $dati['libero'];
+	}
+
 	public function test_connection(): array|\WP_Error {
 		$url    = (string) em_setting( 'em_sottoscacco_webhook_url', '' );
 		$secret = (string) em_setting( 'em_sottoscacco_webhook_secret', '' );

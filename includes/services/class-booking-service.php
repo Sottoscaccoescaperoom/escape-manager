@@ -27,7 +27,10 @@ final class Booking_Service {
 		private Room_Repository $rooms = new Room_Repository(),
 		private Location_Repository $locations = new Location_Repository(),
 		private Pricing_Service $pricing = new Pricing_Service(),
-		private Activity_Logger $logger = new Activity_Logger()
+		private Activity_Logger $logger = new Activity_Logger(),
+		// §Un calendario solo 2026-09-10 — serve a chiedere al gestionale se lo
+		// slot è libero anche di là. Vedi `slot_occupato_nel_gestionale`.
+		private Sottoscacco_Bridge_Service $ponte = new Sottoscacco_Bridge_Service()
 	) {}
 
 	/**
@@ -127,6 +130,46 @@ final class Booking_Service {
 		 * ora, scoperte solo dalla segnalazione automatica del gestionale.
 		 */
 		if ( $this->bookings->has_overlap( (int) $room['id'], (string) $lock['start_datetime'], (string) $lock['end_datetime'] ) ) {
+			$this->locks->delete( (int) $lock['id'] );
+			return new \WP_Error(
+				'SLOT_TAKEN',
+				__( 'Questo orario è stato appena prenotato da qualcun altro. Scegli un altro orario: non ti abbiamo addebitato nulla.', 'escape-manager' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		/**
+		 * 🚨 §Un calendario solo 2026-09-10 — E LO CHIEDIAMO ANCHE ALL'ALTRO
+		 * CALENDARIO.
+		 *
+		 * ═════════════════════════════════════════════════════════════
+		 * IL CONTROLLO QUI SOPRA GUARDA UNA COPIA, NON L'ORIGINALE
+		 * ═════════════════════════════════════════════════════════════
+		 *
+		 * `has_overlap()` interroga la tabella di QUESTO sito, che è una copia
+		 * tenuta allineata da messaggi. Il rimedio del 17/08 chiudeva la corsa fra
+		 * il lock e la conferma, ma continuava a fidarsi della copia: se un
+		 * messaggio dal gestionale si perde o arriva sbagliato, la copia dice
+		 * «libero» di una casella che in reception è già occupata.
+		 *
+		 * È successo il 10/09/2026: uno spostamento fatto in reception è arrivato
+		 * qui con la stanza nuova e l'ORARIO VECCHIO. Da noi Occhio di Ra alle
+		 * 19:00 risultava libera; nel gestionale c'era già una squadra.
+		 *
+		 * Chiesto dal titolare: «come si può fisicamente far prenotare due persone
+		 * nello stesso turno? È un bug grave». Aveva ragione, e la causa non era
+		 * una riga sbagliata: erano due calendari, ciascuno convinto di sapere.
+		 *
+		 * ⚠️ SI BLOCCA SOLO SU UN «SÌ, È OCCUPATO» ESPLICITO. Se il gestionale non
+		 * risponde si prosegue: rifiutare a ogni suo intoppo spegnerebbe le vendite
+		 * online, e nel dubbio si vende — tornando al comportamento di prima, non a
+		 * uno peggiore. Il perché per esteso sta su `slot_occupato_nel_gestionale`.
+		 *
+		 * ⚠️ Stesso messaggio e stesso codice del caso qui sopra: per il cliente
+		 * è lo stesso fatto — quell'orario non c'è più — e distinguere quale dei
+		 * due calendari l'ha fermato non gli serve a niente.
+		 */
+		if ( true === $this->ponte->slot_occupato_nel_gestionale( $room, (string) $lock['start_datetime'] ) ) {
 			$this->locks->delete( (int) $lock['id'] );
 			return new \WP_Error(
 				'SLOT_TAKEN',
