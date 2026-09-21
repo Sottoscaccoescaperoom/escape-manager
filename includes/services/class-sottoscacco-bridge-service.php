@@ -98,6 +98,25 @@ final class Sottoscacco_Bridge_Service {
 	/**
 	 * Costruisce payload nel formato Escape Navigator (vedi sottoscacco/services/escapeNavigatorService.ts).
 	 */
+	/**
+	 * Il PRIMO indirizzo di `X-Forwarded-For`, cioè quello del cliente.
+	 *
+	 * ⚠️ Diverso da `client_ip()` dei controller REST, che prende l'ultimo:
+	 * là serve un indirizzo che il cliente non possa falsificare (rate
+	 * limiting), qui serve sapere CHI si è collegato. Due domande diverse,
+	 * due estremi della stessa lista.
+	 */
+	private function client_ip_origine(): string {
+		if ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+			$parts = array_map( 'trim', explode( ',', (string) wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) );
+			$primo = reset( $parts );
+			if ( $primo ) {
+				return $primo;
+			}
+		}
+		return isset( $_SERVER['REMOTE_ADDR'] ) ? (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '';
+	}
+
 	public function build_payload( string $event, array $booking ): array {
 		$customer = $booking['customer_id'] ? $this->customers->find( (int) $booking['customer_id'] ) : null;
 		$room     = $this->rooms->find( (int) $booking['room_id'] );
@@ -135,6 +154,32 @@ final class Sottoscacco_Bridge_Service {
 					'slug'  => $room['slug'] ?? '',
 				),
 				'comment'  => $booking['customer_comment'] ?? null,
+				/**
+				 * §L'impronta del collegamento 2026-09-21 — DA DOVE ARRIVA.
+				 *
+				 * Segnalato dal titolare: «anche oggi due turni non si sono
+				 * presentati e hanno prenotato con un numero di telefono
+				 * falso». Sottoscacco ha da sempre un criterio «stesso
+				 * collegamento» fra le spie delle prenotazioni sospette, e non
+				 * ha mai potuto dire niente perché questo campo non c'era: su
+				 * 629 prenotazioni da agosto, zero avevano l'indirizzo.
+				 *
+				 * 🚨 Si manda l'indirizzo GREZZO e Sottoscacco ne tiene solo
+				 * un'impronta, calcolata con un sale che sta soltanto là. Se
+				 * l'impronta la facessimo qui, il sale dovrebbe stare nei file
+				 * del sito — e chi li legge potrebbe rifare l'impronta di un
+				 * indirizzo qualunque e cercarla in archivio, cioè proprio la
+				 * cosa da cui l'impronta dovrebbe proteggere.
+				 *
+				 * ⚠️ NON si usa `client_ip()`: quella prende l'ULTIMO hop,
+				 * che è giusto per il rate limiting (non falsificabile) ma qui
+				 * sarebbe l'indirizzo del proxy, uguale per tutti i clienti —
+				 * e la spia segnalerebbe ogni prenotazione. Qui serve il
+				 * PRIMO, che è il cliente: falsificabile, ma chi prenota con
+				 * un numero finto raramente si mette anche a riscrivere le
+				 * intestazioni HTTP.
+				 */
+				'clientIp' => $this->client_ip_origine(),
 			),
 		);
 
