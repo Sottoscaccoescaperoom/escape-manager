@@ -102,6 +102,11 @@ final class Booking_Service {
 		if ( ! empty( $pricing['below_minimum'] ) ) {
 			$min_eur = number_format( ( (int) $pricing['min_booking_cents'] ) / 100, 0 );
 			return new \WP_Error(
+				// ⚠️ §Il minimo di 60 € non si spegne 2026-09-29 — RETE DI SICUREZZA,
+				//    oggi non scatta mai: il preventivo arrotonda sempre al minimo e
+				//    non respinge più nessuno, perché il prezzo non guarda l'età di
+				//    chi gioca. Resta perché questo è l'ultimo punto prima di
+				//    scrivere in agenda una prenotazione a metà prezzo.
 				'BELOW_MINIMUM',
 				sprintf( __( 'Per prenotare serve un minimo di %s€: aggiungi almeno un adulto oppure aumenta i ragazzi.', 'escape-manager' ), $min_eur ),
 				array( 'status' => 422 )

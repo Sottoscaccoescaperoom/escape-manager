@@ -52,20 +52,49 @@ final class Pricing_Service {
 		$child_reduced  = (int) em_setting( 'em_price_child_reduced', 1500 );
 		$subtotal       = $adults * $ppa + $reduced * $child_reduced;
 
-		// §Minimo prenotazione 2026-07-15 — qualunque combinazione deve valere
-		// almeno il minimo (default 60€). Con almeno un ADULTO si arrotonda al
-		// minimo; con SOLI ridotti/bimbi sotto al minimo si BLOCCA (below_minimum),
-		// e il client chiede di aggiungere un adulto o arrivare al minimo naturale.
+		/*
+		 * ══════════════════════════════════════════════════════════════════════
+		 * 🚨 §Il minimo di 60 € non si spegne 2026-09-29 — IL SITO HA VENDUTO
+		 *    UNA PARTITA A 22 €.
+		 * ══════════════════════════════════════════════════════════════════════
+		 *
+		 * Segnalato dal titolare: «hanno prenotato un adulto e un bambino, il
+		 * sito ha detto 22 €, un'altra 45 €; poi sono venuti qua e gli abbiamo
+		 * chiesto 60 € — abbiamo fatto una figuraccia». La regola di casa è
+		 * netta: «la giocata minima è 60 € senza sconti, a prescindere da che
+		 * tipo di persone sono».
+		 *
+		 * 🚨 La regola c'era ed era scritta bene. A spegnerla è stata una
+		 * IMPOSTAZIONE SALVATA VUOTA: `get_option` restituisce il valore di
+		 * riserva solo se la voce NON ESISTE, mentre una voce che esiste con
+		 * dentro '' torna '' — e `(int) ''` fa 0, che qui voleva dire «nessun
+		 * minimo». In produzione `min_booking_cents` valeva 0 da chissà quando,
+		 * e nessuno poteva accorgersene: il widget, che leggeva lo stesso
+		 * numero con `|| 6000`, continuava a PROMETTERE il minimo allo step
+		 * «Quanti siete?». Prometteva 60 e il riepilogo chiedeva 22.
+		 *
+		 * ⚠️ Quindi zero non vuol più dire «nessun minimo»: vuol dire «non
+		 * configurato», e si usa il minimo di riserva. Un prezzo di listino non
+		 * è il genere di cosa che deve potersi disattivare per distrazione —
+		 * per cambiarlo si scrive un numero, e il numero si vede.
+		 *
+		 * ⚠️ E il minimo non guarda più l'ETÀ di chi gioca. Prima si arrotondava
+		 * solo se c'era almeno un adulto, e un gruppo di soli ragazzi veniva
+		 * RESPINTO con «aggiungi un adulto»: due regole diverse — quanto costa e
+		 * chi può entrare — impastate in una sola. Quanto costa lo dice questa
+		 * riga: sotto il minimo si paga il minimo, chiunque tu sia. Chi può
+		 * giocare resta deciso da `kidsOk` nel widget (i bimbi 0-6 non possono
+		 * essere la maggioranza), che è il posto giusto.
+		 */
 		$min_cents      = (int) em_setting( 'em_min_booking_cents', 6000 );
+		if ( $min_cents <= 0 ) {
+			$min_cents = 6000;
+		}
 		$below_minimum  = false;
 		$min_applied    = false;
-		if ( $min_cents > 0 && $subtotal > 0 && $subtotal < $min_cents ) {
-			if ( $adults >= 1 ) {
-				$subtotal    = $min_cents;
-				$min_applied = true;
-			} else {
-				$below_minimum = true;
-			}
+		if ( $subtotal > 0 && $subtotal < $min_cents ) {
+			$subtotal    = $min_cents;
+			$min_applied = true;
 		}
 
 		// §Ripristino 2026-07-23 — Sconto celebrazione: per compleanno / addio

@@ -3,7 +3,7 @@
  * Plugin Name:       Escape Manager
  * Plugin URI:        https://example.com/escape-manager
  * Description:       Sistema proprietario di gestione escape room: prenotazioni, CRM, calendario operativo, clienti, staff, pagamenti.
- * Version:           0.9.32
+ * Version:           0.9.33
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Luca D.
@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * un aggiornamento che risulta fatto e non si vede da nessuna parte, che è il
  * modo peggiore di fallire perché nessuno lo cerca più.
  */
-define( 'EM_VERSION', '0.9.32' );
+define( 'EM_VERSION', '0.9.33' );
 define( 'EM_DB_VERSION', '6' );
 define( 'EM_PLUGIN_FILE', __FILE__ );
 define( 'EM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

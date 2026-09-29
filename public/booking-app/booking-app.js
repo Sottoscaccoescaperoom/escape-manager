@@ -763,17 +763,27 @@ function Step2_Participants({ room, onNext, onBack }) {
 	const paying = adults + reduced;                 // adulti + ragazzi (7-10)
 	const inRange = players >= room.min_players && players <= room.max_players;
 	const kidsOk = paying >= 1 && paying >= free;    // i bambini 0-6 non possono essere la maggioranza
-	// §Minimo €60 — con almeno un adulto sotto il minimo si arrotonda; con soli
-	// ragazzi/bimbi sotto il minimo si BLOCCA e si spiega come raggiungerlo.
+	/*
+	 * §Il minimo di 60 € non si spegne 2026-09-29 — sotto il minimo si paga il
+	 * minimo, QUALUNQUE sia l'età di chi gioca: è la regola di casa («la giocata
+	 * minima è 60 €, a prescindere da che tipo di persone sono»).
+	 *
+	 * ⚠️ Prima qui si BLOCCAVA il gruppo senza adulti, con un messaggio che
+	 * chiedeva di aggiungere gente per arrivare a 60. Non era una regola di
+	 * prezzo, era un divieto travestito: chi può giocare lo decide `kidsOk`
+	 * (i bimbi 0-6 non possono essere la maggioranza), e quello resta.
+	 *
+	 * ⚠️ `minCents` deve restare a prova di impostazione vuota. È da lì che è
+	 * nato il guaio: il server leggeva 0 e vendeva a 22 €, questa riga leggeva
+	 * `0 || 6000` e prometteva 60. Le due metà devono dire lo stesso numero.
+	 */
 	const P = CONFIG.pricing || {};
 	const priceForGroup = (g) => g >= 4 ? (P.adult4plus || 2200) : g === 3 ? (P.adult3 || 2500) : g === 2 ? (P.adult2 || 3000) : (P.adult4plus || 2200);
 	const subtotalCents = adults * priceForGroup(paying) + reduced * (P.childReduced || 1500);
-	const minCents = P.minCents || 6000;
+	const minCents = P.minCents > 0 ? P.minCents : 6000;
 	const minEur = Math.round(minCents / 100);
-	const reducedNeeded = Math.ceil(minCents / (P.childReduced || 1500));
-	const belowMin = subtotalCents > 0 && subtotalCents < minCents && adults < 1;
-	const minWillApply = subtotalCents > 0 && subtotalCents < minCents && adults >= 1;
-	const valid = inRange && kidsOk && !belowMin;
+	const minWillApply = subtotalCents > 0 && subtotalCents < minCents;
+	const valid = inRange && kidsOk;
 
 	return html`
 		<div class="em-step2">
@@ -792,15 +802,13 @@ function Step2_Participants({ room, onNext, onBack }) {
 					<strong>* Documenti eventualmente richiesti:</strong> il giorno del gioco <em>potrebbero</em> essere richiesti i documenti d'identità dei minori per confermare la tariffa ridotta o l'ingresso gratuito.
 				</div>`}
 
-			${minWillApply && html`<p class="em-info-box">💡 Con questo gruppo si applica il <strong>minimo di €${minEur}</strong> a prenotazione. Il totale esatto lo vedi nel riepilogo.</p>`}
+			${minWillApply && html`<p class="em-info-box">💡 La giocata minima è di <strong>€${minEur}</strong> a prenotazione: con questo gruppo il totale è <strong>€${minEur}</strong>, non la somma dei singoli biglietti.</p>`}
 			${!valid && html`<p class="em-error">${
-				belowMin
-					? `Per prenotare serve un minimo di €${minEur}: aggiungi almeno un adulto, oppure porta i ragazzi ridotti (7-10) ad almeno ${reducedNeeded}.`
-					: !kidsOk
-						? (paying < 1
-							? 'Serve almeno un adulto o un ragazzo (7-10): non si può giocare solo con bambini 0-6 anni.'
-							: `I bambini 0-6 anni non possono essere la maggioranza: servono almeno ${free} tra adulti e ragazzi.`)
-						: `Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.`
+				!kidsOk
+					? (paying < 1
+						? 'Serve almeno un adulto o un ragazzo (7-10): non si può giocare solo con bambini 0-6 anni.'
+						: `I bambini 0-6 anni non possono essere la maggioranza: servono almeno ${free} tra adulti e ragazzi.`)
+					: `Il numero totale di giocatori (${players}) deve essere tra ${room.min_players} e ${room.max_players}.`
 			}</p>`}
 
 			<div class="em-actions">
@@ -1029,6 +1037,7 @@ function Step4_Summary({ room, slot, participants, event, customer, onConfirm, o
 			${quote && html`
 				<div class="em-price-box">
 					<div class="em-price-row"><span>Giocatori paganti</span><span>${formatMoney(quote.subtotal_cents)}</span></div>
+					${quote.min_charge_applied && html`<div class="em-price-row em-muted-p"><span>Applicata la giocata minima di €${Math.round((quote.min_booking_cents || 6000) / 100)} a prenotazione</span><span></span></div>`}
 					${quote.event_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Sconto ${eventLabelOf(event.event_type)} (1 gratis)</span><span>−${formatMoney(quote.event_discount_cents)}</span></div>`}
 					${quote.seasonal_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>🔥 Promo −${quote.seasonal_percent}%</span><span>−${formatMoney(quote.seasonal_discount_cents)}</span></div>`}
 						${quote.code_discount_cents > 0 && html`<div class="em-price-row em-discount"><span>Codice ${quote.applied_code || ''}</span><span>−${formatMoney(quote.code_discount_cents)}</span></div>`}
