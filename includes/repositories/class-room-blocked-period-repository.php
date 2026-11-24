@@ -35,6 +35,16 @@ final class Room_Blocked_Period_Repository extends Base_Repository {
 		) ?: array();
 	}
 
+	/**
+	 * §Nona stanza 2026-11-24 — C'è un blocco che copre (anche in parte) questo
+	 * intervallo? Stesso test di sovrapposizione della disponibilità: se il
+	 * widget mostra il lucchetto, qui la risposta è sì. Date in UTC
+	 * 'Y-m-d H:i:s', come nella tabella.
+	 */
+	public function copre( int $room_id, string $start_utc, string $end_utc ): bool {
+		return ! empty( $this->list_range( $room_id, $start_utc, $end_utc ) );
+	}
+
 	public function create( int $room_id, string $start, string $end, ?string $reason = null, ?int $user_id = null ): int {
 		$this->wpdb->insert( $this->table, array(
 			'room_id'        => $room_id,

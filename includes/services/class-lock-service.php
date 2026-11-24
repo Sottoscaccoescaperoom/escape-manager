@@ -4,6 +4,7 @@ namespace EscapeManager\Services;
 use EscapeManager\Repositories\Lock_Repository;
 use EscapeManager\Repositories\Booking_Repository;
 use EscapeManager\Repositories\Room_Repository;
+use EscapeManager\Repositories\Room_Blocked_Period_Repository;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -17,7 +18,8 @@ final class Lock_Service {
 	public function __construct(
 		private Lock_Repository $locks = new Lock_Repository(),
 		private Booking_Repository $bookings = new Booking_Repository(),
-		private Room_Repository $rooms = new Room_Repository()
+		private Room_Repository $rooms = new Room_Repository(),
+		private Room_Blocked_Period_Repository $blocchi = new Room_Blocked_Period_Repository()
 	) {}
 
 	/**
@@ -91,6 +93,24 @@ final class Lock_Service {
 
 		$end_utc      = $end_dt->format( 'Y-m-d H:i:s' );
 		$expires_str  = $expires->format( 'Y-m-d H:i:s' );
+
+		/**
+		 * 🚨 §Nona stanza 2026-11-24 — UNO SLOT BLOCCATO NON SI PRENDE DAL SITO.
+		 *
+		 * Il widget mostra il lucchetto sui periodi bloccati, ma fin qui il
+		 * server non lo controllava: chi chiamava questa rotta pubblica a mano
+		 * poteva prendere uno slot «Non disponibile». Con Michael Myers i
+		 * blocchi sono l'unica cosa che sul sito tiene chiusa la stanza fino
+		 * all'apertura (11/12), quindi devono valere anche qui.
+		 *
+		 * ⚠️ Solo per il pubblico: la reception e il gestionale (chiave API o
+		 * utente con permessi, `ignora_blocchi`) possono ancora mettere un turno
+		 * in un periodo bloccato, come fanno oggi dal CRM. L'apertura delle
+		 * stanze nuove, dalla loro parte, la controlla il gestionale.
+		 */
+		if ( empty( $opts['ignora_blocchi'] ) && $this->blocchi->copre( $room_id, $start_utc, $end_utc ) ) {
+			return new \WP_Error( 'SLOT_BLOCKED', __( 'Questo orario non è disponibile. Scegli un altro orario.', 'escape-manager' ), array( 'status' => 409 ) );
+		}
 
 		// Transazione: SERIALIZABLE non sempre disponibile su shared hosting,
 		// usiamo InnoDB default + GET_LOCK MySQL per linearizzare richieste sullo stesso slot.

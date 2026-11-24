@@ -59,6 +59,9 @@ final class Locks_Controller extends Rest_Controller_Base {
 				$opts['ttl_minutes'] = (int) $body['ttl_minutes'];
 			}
 			$opts['preempt'] = ! empty( $body['preempt'] );
+			// §Nona stanza 2026-11-24 — I periodi bloccati fermano solo il
+			// pubblico: chi lavora in sede può ancora metterci un turno.
+			$opts['ignora_blocchi'] = true;
 		}
 
 		$result = $this->service->acquire( $room_id, $utc, $session_id, $phone, $opts );

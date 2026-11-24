@@ -6,6 +6,7 @@ use EscapeManager\Repositories\Booking_Repository;
 use EscapeManager\Repositories\Customer_Repository;
 use EscapeManager\Repositories\Lock_Repository;
 use EscapeManager\Repositories\Room_Repository;
+use EscapeManager\Repositories\Room_Blocked_Period_Repository;
 use EscapeManager\Repositories\Location_Repository;
 use EscapeManager\Repositories\Promocode_Repository;
 use EscapeManager\Repositories\Voucher_Repository;
@@ -30,7 +31,9 @@ final class Booking_Service {
 		private Activity_Logger $logger = new Activity_Logger(),
 		// §Un calendario solo 2026-09-10 — serve a chiedere al gestionale se lo
 		// slot è libero anche di là. Vedi `slot_occupato_nel_gestionale`.
-		private Sottoscacco_Bridge_Service $ponte = new Sottoscacco_Bridge_Service()
+		private Sottoscacco_Bridge_Service $ponte = new Sottoscacco_Bridge_Service(),
+		// §Nona stanza 2026-11-24 — periodi bloccati, ricontrollati alla conferma.
+		private Room_Blocked_Period_Repository $blocchi = new Room_Blocked_Period_Repository()
 	) {}
 
 	/**
@@ -58,6 +61,21 @@ final class Booking_Service {
 		$room = $this->rooms->find( (int) $lock['room_id'] );
 		if ( ! $room ) {
 			return new \WP_Error( 'ROOM_NOT_FOUND', __( 'Stanza non disponibile.', 'escape-manager' ), array( 'status' => 404 ) );
+		}
+
+		/*
+		 * §Nona stanza 2026-11-24 — Il periodo bloccato si ricontrolla alla
+		 * conferma: il lock può essere nato prima del blocco (un blocco messo
+		 * dalla lavagna mentre il cliente compila). Stessa regola del lock in
+		 * Lock_Service::acquire, che non vale per la reception.
+		 */
+		if ( $this->blocchi->copre( (int) $room['id'], (string) $lock['start_datetime'], (string) $lock['end_datetime'] ) ) {
+			$this->locks->delete( (int) $lock['id'] );
+			return new \WP_Error(
+				'SLOT_BLOCKED',
+				__( 'Questo orario non è più disponibile. Scegli un altro orario: non ti abbiamo addebitato nulla.', 'escape-manager' ),
+				array( 'status' => 409 )
+			);
 		}
 
 		$customer_data = (array) ( $payload['customer'] ?? array() );
