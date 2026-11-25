@@ -174,6 +174,8 @@ final class Availability_Service {
 				// modificabile in inserimento stanza. Vuoto → il booking-app usa
 				// il testo di default per quella stanza.
 				'slogan'           => isset( $room['teaser'] ) ? (string) $room['teaser'] : null,
+				// §Badge «NUOVA» 2026-11-25 — vedi em_room_is_new().
+				'is_new'           => em_room_is_new( (string) $room['slug'] ),
 				'image_url'        => $room['image_url'],
 				// §Poster 2026-07-15 — immagine "frame" mostrata finché il video
 				// dell'icona non è pronto (evita l'icona vuota durante il caricamento).

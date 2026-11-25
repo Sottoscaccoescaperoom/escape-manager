@@ -30,6 +30,36 @@ function em_update_setting( string $key, mixed $value ): bool {
 	return update_option( $option_key, $value );
 }
 
+/**
+ * §Badge «NUOVA» 2026-11-25 — La stanza è ancora «nuova» (badge nel widget)?
+ *
+ * Opzione `em_new_rooms_until`: JSON slug → ultimo giorno COMPRESO
+ * (YYYY-MM-DD), es. {"michael-myers":"2027-06-11"}. Vale per qualunque
+ * stanza futura: basta aggiungere una riga, e il badge si spegne da solo.
+ *
+ * ⚠️ Opzione assente o salvata vuota = nessuna stanza nuova (qui «vuoto» non
+ * è una regola di listino: spegnere i badge è l'effetto giusto).
+ * ⚠️ Il giorno si calcola nel fuso di ESCAPE MANAGER, mai con wp_date():
+ * WordPress su questo sito è su UTC.
+ */
+function em_room_is_new( string $slug ): bool {
+	$map = em_setting( 'em_new_rooms_until', array() );
+	if ( ! is_array( $map ) || '' === $slug ) {
+		return false;
+	}
+	$until = $map[ $slug ] ?? '';
+	if ( ! is_string( $until ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $until ) ) {
+		return false;
+	}
+	$tz = (string) em_setting( 'em_timezone', 'Europe/Rome' );
+	try {
+		$oggi = ( new \DateTimeImmutable( 'now', new \DateTimeZone( '' !== $tz ? $tz : 'Europe/Rome' ) ) )->format( 'Y-m-d' );
+	} catch ( \Exception $e ) {
+		$oggi = ( new \DateTimeImmutable( 'now', new \DateTimeZone( 'Europe/Rome' ) ) )->format( 'Y-m-d' );
+	}
+	return $oggi <= $until;
+}
+
 function em_now_utc(): string {
 	return gmdate( 'Y-m-d H:i:s' );
 }

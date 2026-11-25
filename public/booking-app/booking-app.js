@@ -420,6 +420,12 @@ const ICON_PEOPLE = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 const ICON_CLOCK  = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
 const ICON_BARS   = html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="9"/><line x1="18" y1="20" x2="18" y2="4"/></svg>`;
 
+/** §Badge «NUOVA» 2026-11-25 — pillola gialla accanto al nome di una stanza
+ *  nuova. Il «fino a quando» lo decide il server (`is_new`). */
+function NewBadge({ room }) {
+	return room && room.is_new ? html`<span class="emc-new-badge">Nuova</span>` : '';
+}
+
 function RoomHead({ room, dayDate }) {
 	const diff = difficultyLabel(room.difficulty);
 	const phrases = roomSlogans(room); // §SLOGAN — micro-frasi che si alternano
@@ -430,6 +436,7 @@ function RoomHead({ room, dayDate }) {
 			<div>
 				<div class="emc-room-name-row">
 					<span class="emc-room-name">${room.room_name}</span>
+					<${NewBadge} room=${room} />
 					<${RoomSlogan} phrases=${phrases} />
 				</div>
 				<div class="emc-room-meta">
@@ -625,6 +632,7 @@ function Step1_Calendar({ onPick }) {
 								<button key=${r.room_id} class=${'emc-side-room ' + (activeRoom && r.room_id === activeRoom.room_id ? 'is-active' : '')} onClick=${() => setSelectedRoomId(r.room_id)}>
 									<${Avatar} name=${r.room_name} img=${r.image_url} poster=${r.image_poster} />
 									<span>${r.room_name}</span>
+									<${NewBadge} room=${r} />
 								</button>`)}
 						</div>
 					</aside>
