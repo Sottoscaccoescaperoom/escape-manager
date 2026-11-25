@@ -181,6 +181,15 @@ function isoToday() {
 	const d = new Date();
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+/** §Apertura calendario 2026-11-25 — giorno da cui parte il calendario:
+ *  `startDate` dal server (stanza che apre più avanti) se è ancora futura,
+ *  altrimenti oggi. Una pagina rimasta in cache dopo l'apertura torna da sola
+ *  a oggi. */
+function initialDate() {
+	const t = isoToday();
+	const s = CONFIG.startDate;
+	return (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && s > t) ? s : t;
+}
 function isoAddDays(iso, n) {
 	const d = new Date(iso + 'T00:00:00');
 	d.setDate(d.getDate() + n);
@@ -495,9 +504,9 @@ function mergeNightSlots(rawDays, days) {
 
 function Step1_Calendar({ onPick }) {
 	const [view, setView] = useState('day');
-	const [selectedDate, setSelectedDate] = useState(isoToday());
-	const [stripStart, setStripStart] = useState(isoToday());
-	const [weekStart, setWeekStart] = useState(isoToday());
+	const [selectedDate, setSelectedDate] = useState(initialDate);
+	const [stripStart, setStripStart] = useState(initialDate);
+	const [weekStart, setWeekStart] = useState(initialDate);
 	const [selectedRoomId, setSelectedRoomId] = useState(null);
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(false);

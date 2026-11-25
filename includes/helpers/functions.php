@@ -60,6 +60,74 @@ function em_room_is_new( string $slug ): bool {
 	return $oggi <= $until;
 }
 
+/**
+ * §Apertura calendario 2026-11-25 — Pagina di una stanza ancora chiusa:
+ * da che giorno deve partire il calendario?
+ *
+ * Ritorna il primo giorno (YYYY-MM-DD, ora di Roma) che NON è coperto per
+ * intero dai periodi bloccati, ma solo se è DOPO oggi; altrimenti null, e il
+ * widget parte da oggi come sempre. Il giorno va dalle 05:00 alle 05:00 del
+ * giorno dopo (giornata operativa: i turni dopo mezzanotte sono della sera
+ * prima). Esempio: Michael Myers, bloccata fino alla notte del 10/12 →
+ * «2026-12-11»; dall'11/12 in poi → null, senza toccare niente.
+ *
+ * ⚠️ Fuso di EM, mai wp_date(): WordPress qui è su UTC.
+ */
+function em_first_bookable_day( string $slug ): ?string {
+	global $wpdb;
+	if ( '' === $slug ) {
+		return null;
+	}
+	$room_id = (int) $wpdb->get_var( $wpdb->prepare(
+		'SELECT id FROM ' . em_table( 'rooms' ) . ' WHERE slug = %s AND is_active = 1 AND deleted_at IS NULL LIMIT 1',
+		$slug
+	) );
+	if ( ! $room_id ) {
+		return null;
+	}
+	$tz_name = (string) em_setting( 'em_timezone', 'Europe/Rome' );
+	try {
+		$tz = new \DateTimeZone( '' !== $tz_name ? $tz_name : 'Europe/Rome' );
+	} catch ( \Exception $e ) {
+		$tz = new \DateTimeZone( 'Europe/Rome' );
+	}
+	$utc  = new \DateTimeZone( 'UTC' );
+	$now  = time();
+	$rows = $wpdb->get_results( $wpdb->prepare(
+		'SELECT start_datetime, end_datetime FROM ' . em_table( 'room_blocked_periods' )
+		. ' WHERE room_id = %d AND end_datetime > %s ORDER BY start_datetime ASC',
+		$room_id,
+		gmdate( 'Y-m-d H:i:s', $now )
+	), ARRAY_A ) ?: array();
+	if ( empty( $rows ) ) {
+		return null;
+	}
+	$blocchi = array();
+	foreach ( $rows as $r ) {
+		$blocchi[] = array(
+			( new \DateTimeImmutable( $r['start_datetime'], $utc ) )->getTimestamp(),
+			( new \DateTimeImmutable( $r['end_datetime'], $utc ) )->getTimestamp(),
+		);
+	}
+	// Giornata operativa di adesso (prima delle 05:00 è ancora ieri).
+	$giorno = ( new \DateTimeImmutable( '@' . ( $now - 5 * 3600 ) ) )->setTimezone( $tz )->format( 'Y-m-d' );
+	for ( $i = 0; $i < 180; $i++ ) {
+		$da = new \DateTimeImmutable( $giorno . ' 05:00:00', $tz );
+		$a  = $da->modify( '+1 day' );
+		$cursore = max( $now, $da->getTimestamp() );
+		foreach ( $blocchi as $b ) {
+			if ( $b[0] <= $cursore && $b[1] > $cursore ) {
+				$cursore = $b[1];
+			}
+		}
+		if ( $cursore < $a->getTimestamp() ) {
+			return 0 === $i ? null : $giorno;
+		}
+		$giorno = $a->format( 'Y-m-d' );
+	}
+	return null;
+}
+
 function em_now_utc(): string {
 	return gmdate( 'Y-m-d H:i:s' );
 }

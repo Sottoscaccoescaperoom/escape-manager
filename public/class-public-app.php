@@ -118,6 +118,10 @@ final class Public_App {
 			// §Singola stanza — [escape_booking room="slug"] mostra/preseleziona
 			// solo quella stanza (usato nelle pagine dedicate di ogni stanza).
 			'roomSlug'     => isset( $atts['room'] ) ? sanitize_title( $atts['room'] ) : null,
+			// §Apertura calendario 2026-11-25 — Solo nella pagina di UNA stanza:
+			// se oggi è tutta bloccata (stanza che apre più avanti), il calendario
+			// parte dal primo giorno prenotabile. null = da oggi, come sempre.
+			'startDate'    => isset( $atts['room'] ) ? em_first_bookable_day( sanitize_title( $atts['room'] ) ) : null,
 			// §Ordinamento stanze — promuove le stanze "deboli" (poche prenotazioni
 			// nel giorno) in cima con un boost pesato, senza seppellire le forti,
 			// ed evidenzia con un badge quelle con tanta disponibilità.
