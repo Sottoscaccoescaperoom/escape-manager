@@ -29,11 +29,11 @@ function verifica( string $nome, bool $ok ): void {
 // 1. La forma del beacon, così com'è nel cookie (JSON).
 $cookie = json_encode( array(
 	'v' => 1,
-	'f' => array( 's' => 'google', 'm' => 'cpc', 'c' => 'natale26_a', 'gc' => 1, 'gb' => 0, 'wb' => 0, 'g' => 'ABC', 'l' => '/stanze/?email=a@b.it', 't' => '2026-12-01T10:00:00Z' ),
+	'f' => array( 's' => 'google', 'm' => 'cpc', 'c' => 'natale2026', 'ct' => 'cosafare', 'tm' => 'escape room', 'gc' => 1, 'gb' => 0, 'wb' => 0, 'g' => 'ABC', 'l' => '/stanze/?email=a@b.it', 't' => '2026-12-01T10:00:00Z' ),
 	'l' => array( 's' => 'instagram.com', 'm' => 'referral', 'c' => '', 'gc' => 0, 'l' => '/', 't' => '2026-12-03T10:00:00Z' ),
 ) );
 $a = em_sanitize_attribution( $cookie );
-verifica( 'prima: google/cpc/natale26_a con gclid', 'google' === $a['f']['s'] && 'natale26_a' === $a['f']['c'] && 1 === $a['f']['gc'] && 'ABC' === $a['f']['g'] );
+verifica( 'prima: google/cpc/natale2026/cosafare con gclid', 'google' === $a['f']['s'] && 'natale2026' === $a['f']['c'] && 'cosafare' === $a['f']['ct'] && 'escape room' === $a['f']['tm'] && 1 === $a['f']['gc'] && 'ABC' === $a['f']['g'] );
 verifica( 'pagina d\'arrivo senza parametri', '/stanze/' === $a['f']['l'] );
 verifica( 'ultima: instagram, campagna vuota tolta', 'instagram.com' === $a['l']['s'] && ! isset( $a['l']['c'] ) );
 

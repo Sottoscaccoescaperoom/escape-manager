@@ -116,6 +116,48 @@ function leggiAttribuzione() {
 	}
 }
 
+/**
+ * §Conversione Google Ads 2026-11-26 — PRENOTAZIONE RIUSCITA.
+ *
+ * Sul sito c'è già il tag Google (Site Kit GT-KD2W638 / GA4) col consent mode
+ * gestito da iubenda: qui si manda SOLO l'evento, il consenso lo decide il tag
+ * (non si forza niente). Due strade, perché il sito ha anche GTM:
+ *   - gtag('event', 'purchase', …)
+ *   - dataLayer.push({ event: 'prenotazione_completata', … })
+ *
+ * 🚨 Niente dati personali: id della prenotazione, totale, stanza, persone.
+ * ⚠️ Una volta sola per prenotazione (segno in localStorage + in memoria), solo
+ * se il turno è confermato o pagato.
+ */
+function tracciaConversione(b) {
+	try {
+		if (!b || !b.id) return;
+		const ok = b.booking_status === 'confirmed' || b.payment_status === 'paid';
+		if (!ok) return;
+		const id = String(b.id);
+		window.__emConversioni = window.__emConversioni || {};
+		if (window.__emConversioni[id]) return;
+		try {
+			const k = 'em_conv_' + id;
+			if (localStorage.getItem(k)) return;
+			localStorage.setItem(k, '1');
+		} catch (e) { /* localStorage bloccato: resta il segno in memoria */ }
+		window.__emConversioni[id] = true;
+		const slug = (b.room && b.room.slug) || '';
+		const dati = {
+			transaction_id: id,
+			value: Math.round(Number(b.total_amount) || 0) / 100, // total_amount è in centesimi
+			currency: 'EUR',
+			items: [{ item_id: slug, item_name: (b.room && b.room.name) || '', quantity: Number(b.total_players) || 1 }],
+			booking_room: slug,
+		};
+		if (typeof window.gtag === 'function') window.gtag('event', 'purchase', dati);
+		if (window.dataLayer && typeof window.dataLayer.push === 'function') {
+			window.dataLayer.push(Object.assign({ event: 'prenotazione_completata' }, dati));
+		}
+	} catch (e) { /* una statistica non deve mai disturbare la prenotazione */ }
+}
+
 async function api(method, path, body = null) {
 	// §FIX 2026-07-13 (#4) — NON inviamo X-WP-Nonce. Tutte le route del widget
 	// sono pubbliche (permission_callback __return_true): il nonce non serve.
@@ -1277,6 +1319,7 @@ function App() {
 				attribution: leggiAttribuzione(),
 			});
 			localStorage.removeItem(LS_ACTIVE_LOCK);
+			tracciaConversione(r.data);
 			setBooking(r.data);
 			setStep(5);
 		} catch (e) {

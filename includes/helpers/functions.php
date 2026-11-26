@@ -103,7 +103,7 @@ function em_json_data( mixed $data, int $status = 200, array $meta = array() ): 
  *
  * Il beacon del gestionale (`ss-analytics.js`, caricato su sottoscacco.it) tiene
  * nel cookie `_ss_attr` la prima e l'ultima provenienza del visitatore: sorgente,
- * mezzo, campagna (utm), se c'era un gclid/gbraid/wbraid, la pagina d'arrivo e
+ * mezzo, campagna, contenuto e termine (utm_*), se c'era un gclid/gbraid/wbraid, la pagina d'arrivo e
  * la data. Il widget lo rimanda con la prenotazione; qui lo si ripulisce prima di
  * salvarlo e di passarlo al gestionale.
  *
@@ -132,7 +132,7 @@ function em_sanitize_attribution( mixed $raw ): ?array {
 			return null;
 		}
 		$o      = array();
-		$limiti = array( 's' => 80, 'm' => 80, 'c' => 120, 'g' => 200, 'l' => 200, 't' => 40 );
+		$limiti = array( 's' => 80, 'm' => 80, 'c' => 120, 'ct' => 120, 'tm' => 120, 'g' => 200, 'l' => 200, 't' => 40 );
 		foreach ( $limiti as $k => $max ) {
 			if ( isset( $t[ $k ] ) && is_scalar( $t[ $k ] ) ) {
 				$v = (string) $t[ $k ];
