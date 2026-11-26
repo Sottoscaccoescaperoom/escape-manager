@@ -97,3 +97,81 @@ function em_json_data( mixed $data, int $status = 200, array $meta = array() ): 
 	}
 	return new WP_REST_Response( $payload, $status );
 }
+
+/**
+ * §Tracciamento conversioni 2026-11-26 — DA DOVE È ARRIVATO CHI PRENOTA.
+ *
+ * Il beacon del gestionale (`ss-analytics.js`, caricato su sottoscacco.it) tiene
+ * nel cookie `_ss_attr` la prima e l'ultima provenienza del visitatore: sorgente,
+ * mezzo, campagna (utm), se c'era un gclid/gbraid/wbraid, la pagina d'arrivo e
+ * la data. Il widget lo rimanda con la prenotazione; qui lo si ripulisce prima di
+ * salvarlo e di passarlo al gestionale.
+ *
+ * ⚠️ Arriva dal browser del cliente: si tiene SOLO la forma prevista (chiavi
+ * note, testi corti, niente parametri nella pagina d'arrivo). Tutto il resto si
+ * butta. `null` se non c'è niente di utile: la prenotazione va avanti uguale.
+ *
+ * @param mixed $raw Stringa JSON (anche URL-encoded) o array già decodificato.
+ */
+function em_sanitize_attribution( mixed $raw ): ?array {
+	if ( is_string( $raw ) ) {
+		$raw = trim( $raw );
+		if ( '' === $raw || strlen( $raw ) > 4000 ) {
+			return null;
+		}
+		if ( 0 === stripos( $raw, '%7B' ) ) {
+			$raw = rawurldecode( $raw );
+		}
+		$raw = json_decode( $raw, true );
+	}
+	if ( ! is_array( $raw ) ) {
+		return null;
+	}
+	$tocco = static function ( mixed $t ): ?array {
+		if ( ! is_array( $t ) ) {
+			return null;
+		}
+		$o      = array();
+		$limiti = array( 's' => 80, 'm' => 80, 'c' => 120, 'g' => 200, 'l' => 200, 't' => 40 );
+		foreach ( $limiti as $k => $max ) {
+			if ( isset( $t[ $k ] ) && is_scalar( $t[ $k ] ) ) {
+				$v = (string) $t[ $k ];
+				if ( 'l' === $k ) {
+					// Solo il percorso: i parametri dell'indirizzo possono contenere di tutto.
+					$v = (string) strtok( $v, '?#' );
+				}
+				$v = substr( sanitize_text_field( $v ), 0, $max );
+				if ( '' !== $v ) {
+					$o[ $k ] = $v;
+				}
+			}
+		}
+		foreach ( array( 'gc', 'gb', 'wb' ) as $k ) {
+			$o[ $k ] = empty( $t[ $k ] ) ? 0 : 1;
+		}
+		if ( empty( $o['s'] ) && empty( $o['m'] ) && empty( $o['c'] ) && ! $o['gc'] && ! $o['gb'] && ! $o['wb'] ) {
+			return null;
+		}
+		return $o;
+	};
+	$f = $tocco( $raw['f'] ?? null );
+	$l = $tocco( $raw['l'] ?? null );
+	if ( ! $f && ! $l ) {
+		return null;
+	}
+	return array( 'v' => 1, 'f' => $f ?? $l, 'l' => $l ?? $f );
+}
+
+/**
+ * §Tracciamento conversioni 2026-11-26 — «Come ci avete conosciuto?» chiesto
+ * dallo staff nel CRM del gestionale. Solo le risposte previste (stesso elenco
+ * di `lib/attribuzione.ts` nel gestionale); altrimenti null. Mai un errore.
+ */
+function em_sanitize_conosciuto( mixed $raw ): ?string {
+	if ( ! is_string( $raw ) ) {
+		return null;
+	}
+	$v       = strtolower( trim( $raw ) );
+	$ammessi = array( 'google_ads', 'google_ricerca', 'social_meta', 'tiktok', 'passaparola', 'gia_cliente', 'locale', 'gift_card', 'altro' );
+	return in_array( $v, $ammessi, true ) ? $v : null;
+}

@@ -211,7 +211,49 @@ final class Sottoscacco_Bridge_Service {
 		}
 		$payload['data']['promoPercent'] = $promo_pct;
 
+		/**
+		 * §Tracciamento conversioni 2026-11-26 — DA DOVE ARRIVA, E CHI L'HA CREATA.
+		 *
+		 * `emSource`: 'public' = il cliente dal widget, 'manual' = lo staff dal CRM.
+		 * `attribuzione`: prima e ultima provenienza (cookie `_ss_attr`, vedi
+		 * `em_sanitize_attribution`). `conosciutoCome`: risposta dello staff.
+		 * Servono solo alla nascita del turno: per gli altri eventi non si cercano.
+		 * Un gestionale vecchio ignora i campi che non conosce.
+		 */
+		$payload['data']['emSource'] = (string) ( $booking['source'] ?? '' );
+		if ( 'new-order' === $event ) {
+			$attr = $booking['attribution'] ?? $this->dato_registrato( (int) $booking['id'], 'booking_attribution' );
+			if ( is_array( $attr ) ) {
+				$payload['data']['attribuzione'] = $attr;
+			}
+			$con = $booking['conosciuto_come'] ?? $this->dato_registrato( (int) $booking['id'], 'booking_conosciuto' );
+			if ( is_string( $con ) && '' !== $con ) {
+				$payload['data']['conosciutoCome'] = $con;
+			}
+		}
+
 		return $payload;
+	}
+
+	/**
+	 * L'ultimo valore registrato nel registro attività per quel turno e
+	 * quell'azione (decodificato), o null. Una sola riga, sull'indice entity.
+	 */
+	private function dato_registrato( int $booking_id, string $azione ): mixed {
+		if ( $booking_id <= 0 ) {
+			return null;
+		}
+		global $wpdb;
+		$tabella = em_table( 'activity_logs' );
+		$valore  = $wpdb->get_var( $wpdb->prepare(
+			"SELECT new_value FROM {$tabella} WHERE entity_type = 'booking' AND entity_id = %d AND action = %s ORDER BY id DESC LIMIT 1",
+			$booking_id,
+			$azione
+		) );
+		if ( null === $valore || '' === $valore ) {
+			return null;
+		}
+		return json_decode( (string) $valore, true );
 	}
 
 	/**

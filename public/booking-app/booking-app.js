@@ -97,6 +97,25 @@ function getSessionId() {
 	return s;
 }
 
+/**
+ * §Tracciamento conversioni 2026-11-26 — Il cookie `_ss_attr` scritto dal beacon
+ * del gestionale (ss-analytics.js): prima e ultima provenienza del visitatore
+ * (annuncio Google, Instagram, ricerca…), niente dati personali. Il server lo
+ * ripulisce e lo passa al gestionale con la prenotazione.
+ */
+function leggiAttribuzione() {
+	try {
+		if (typeof window.ssAttribuzione === 'function') {
+			const v = window.ssAttribuzione();
+			if (v) return v;
+		}
+		const m = document.cookie.match(/(?:^|; )_ss_attr=([^;]*)/);
+		return m ? decodeURIComponent(m[1]) : null;
+	} catch (e) {
+		return null;
+	}
+}
+
 async function api(method, path, body = null) {
 	// §FIX 2026-07-13 (#4) — NON inviamo X-WP-Nonce. Tutte le route del widget
 	// sono pubbliche (permission_callback __return_true): il nonce non serve.
@@ -1253,6 +1272,9 @@ function App() {
 				payment_method,
 				// §Promo periodo — data del turno per lo sconto % (coerente col preventivo).
 				game_date: String((selectedSlot && selectedSlot.start) || '').slice(0, 10),
+				// §Tracciamento conversioni 2026-11-26 — da dove è arrivato il cliente
+				// (cookie del beacon del gestionale). null se non c'è: si prenota uguale.
+				attribution: leggiAttribuzione(),
 			});
 			localStorage.removeItem(LS_ACTIVE_LOCK);
 			setBooking(r.data);

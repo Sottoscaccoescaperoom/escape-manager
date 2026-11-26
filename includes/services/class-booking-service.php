@@ -349,6 +349,26 @@ final class Booking_Service {
 
 		$booking = $this->bookings->find( $booking_id );
 
+		/**
+		 * §Tracciamento conversioni 2026-11-26 — DA DOVE È ARRIVATO IL CLIENTE.
+		 *
+		 * Il widget manda il cookie `_ss_attr` del beacon del gestionale; se non
+		 * lo manda (widget vecchio ancora in cache) lo si legge dalla richiesta,
+		 * che arriva dallo stesso sito. Si registra nel registro attività — niente
+		 * colonne nuove nel database, quindi nessuna tabella da aggiornare — e si
+		 * allega al turno, così il ponte lo porta al gestionale.
+		 *
+		 * ⚠️ Per i pagamenti online la conferma arriva più tardi, da un'altra
+		 * richiesta: lì il ponte lo rilegge dal registro.
+		 */
+		$attribuzione = em_sanitize_attribution(
+			$payload['attribution'] ?? ( isset( $_COOKIE['_ss_attr'] ) ? wp_unslash( (string) $_COOKIE['_ss_attr'] ) : null )
+		);
+		if ( $attribuzione && $booking ) {
+			$this->logger->log( 'booking_attribution', 'booking', $booking_id, null, $attribuzione );
+			$booking['attribution'] = $attribuzione;
+		}
+
 		$this->logger->log( 'booking_created_public', 'booking', $booking_id, null, $booking );
 		do_action( 'em_booking_created', $booking );
 		if ( $booking_status === Booking::STATUS_CONFIRMED ) {
@@ -508,6 +528,15 @@ final class Booking_Service {
 		$this->customers->increment_booking_count( $customer_id, $room_id );
 
 		$booking = $this->bookings->find( $booking_id );
+
+		// §Tracciamento conversioni 2026-11-26 — «Come ci avete conosciuto?» dal
+		// CRM del gestionale. Facoltativo: se manca o non è valido non succede niente.
+		$conosciuto = em_sanitize_conosciuto( $payload['conosciuto_come'] ?? null );
+		if ( $conosciuto && $booking ) {
+			$this->logger->log( 'booking_conosciuto', 'booking', $booking_id, null, $conosciuto );
+			$booking['conosciuto_come'] = $conosciuto;
+		}
+
 		$this->logger->log( 'booking_created_manual', 'booking', $booking_id, null, $booking );
 		do_action( 'em_booking_created', $booking );
 		do_action( 'em_booking_status_changed', $booking, null, Booking::STATUS_CONFIRMED );
