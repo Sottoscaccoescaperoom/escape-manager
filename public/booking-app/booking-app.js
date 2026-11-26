@@ -110,7 +110,9 @@ function leggiAttribuzione() {
 			if (v) return v;
 		}
 		const m = document.cookie.match(/(?:^|; )_ss_attr=([^;]*)/);
-		return m ? decodeURIComponent(m[1]) : null;
+		if (m) return decodeURIComponent(m[1]);
+		// Senza consenso ai cookie il beacon la tiene solo per questa visita.
+		return (window.sessionStorage && window.sessionStorage.getItem('_ss_attr_s')) || null;
 	} catch (e) {
 		return null;
 	}
